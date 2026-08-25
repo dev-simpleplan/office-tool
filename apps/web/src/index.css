@@ -1,9 +1,9 @@
+@import "@office/ui/src/theme.css";
+@import "@office/ui/src/components.css";
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-
-@import "@office/ui/src/theme.css";
-@import "@office/ui/src/components.css";
 
 body {
   background-color: var(--color-background);

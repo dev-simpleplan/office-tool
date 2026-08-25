@@ -27,6 +27,9 @@ async function main() {
         create: { roleId: role.id, permissionId: permission.id },
       });
     }
+    await prisma.rolePermission.deleteMany({
+      where: { roleId: role.id, permission: { key: { notIn: permKeys } } },
+    });
   }
 
   const password = await argon2.hash("Password123!");

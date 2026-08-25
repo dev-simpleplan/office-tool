@@ -20,6 +20,6 @@ export const ROLE_PERMISSIONS: Record<RoleName, PermissionName[]> = {
     "salary.view",
     "salary.update",
   ],
-  TEAM_LEAD: ["employees.view", "employees.create", "employees.update"],
+  TEAM_LEAD: ["employees.view"],
   EMPLOYEE: ["employees.view"],
 };
