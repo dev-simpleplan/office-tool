@@ -21,7 +21,9 @@ export function Layout() {
   return (
     <div className="flex min-h-screen bg-background text-text">
       <aside className="w-60 shrink-0 border-r border-border bg-surface p-4 flex flex-col gap-2">
-        <div className="text-lg font-bold text-primary mb-6 px-2">SimplePlan Office</div>
+        <div className="text-lg font-bold text-primary mb-6 px-2 lowercase tracking-tight">
+          simpleplan office
+        </div>
         <NavLink
           to="/"
           end

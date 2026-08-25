@@ -38,7 +38,9 @@ export function LoginPage() {
         onSubmit={handleSubmit(onSubmit)}
         className="w-full max-w-sm rounded-lg border border-border bg-surface p-8 shadow-sm"
       >
-        <h1 className="mb-1 text-xl font-bold text-primary">SimplePlan Office</h1>
+        <h1 className="mb-1 text-xl font-bold text-primary lowercase tracking-tight">
+          simpleplan office
+        </h1>
         <p className="mb-6 text-sm text-text-muted">Sign in to continue</p>
         <div className="mb-4">
           <label className="mb-1 block text-sm font-medium">Email</label>

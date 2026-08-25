@@ -1,25 +1,39 @@
 /*
  * SimplePlan Office Platform — design tokens
  *
- * Palette decision: SimplePlan Media's live site was not accessible for this build,
- * so this theme uses a bold, modern, professional placeholder palette — a vivid
- * indigo/violet primary against clean neutral surfaces — chosen to read as a
- * confident media/creative brand while staying accessible (AA contrast) in both
- * light and dark mode. Every color is a single CSS variable here so swapping in
- * SimplePlan's real brand colors later is a one-file change; no color values
- * should be hardcoded anywhere else in the codebase.
+ * Palette source: extracted live from https://www.simpleplanmedia.com/ (computed
+ * styles, Aug 2026) — brand red rgb(216,3,29) / #D8031D, near-black rgb(17,17,17)
+ * / #111111, white, headline font "Aspekta" (free, self-hosted via Fontshare).
+ * The public site is a bold red-on-black/white marketing brand; this theme keeps
+ * that identity (red primary, confident near-black dark mode, bold headings) but
+ * tones the red down for large surfaces/backgrounds so it stays a productivity
+ * tool, not a marketing page — red is reserved for primary actions, active nav
+ * state, and accents, per section 6/111 of the spec ("inspired by", not copied).
+ * Every color is a single CSS variable here; no color values should be
+ * hardcoded anywhere else in the codebase.
  */
 
+@import url("https://api.fontshare.com/v2/css?f[]=aspekta@400,500,600,700&display=swap");
+
 :root {
-  --color-primary: #6d28d9;
-  --color-primary-hover: #5b21b6;
+  --font-sans:
+    "Aspekta", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+
+  --color-primary: #d8031d;
+  --color-primary-hover: #b60219;
+  --color-primary-muted: #fce8ea;
   --color-primary-foreground: #ffffff;
 
-  --color-background: #f7f7fb;
+  --color-background: #f7f7f6;
+  --color-background-secondary: #efefee;
   --color-surface: #ffffff;
-  --color-text: #18181b;
-  --color-text-muted: #6b7280;
-  --color-border: #e4e4e7;
+  --color-surface-hover: #f4f4f3;
+
+  --color-text: #111111;
+  --color-text-secondary: #3f3f3e;
+  --color-text-muted: #6f6f6d;
+
+  --color-border: #e2e2e0;
 
   --color-success: #16a34a;
   --color-warning: #d97706;
@@ -32,15 +46,21 @@
 }
 
 :root[data-theme="dark"] {
-  --color-primary: #a78bfa;
-  --color-primary-hover: #c4b5fd;
-  --color-primary-foreground: #1e1b2e;
+  --color-primary: #ff3347;
+  --color-primary-hover: #ff5c6d;
+  --color-primary-muted: #3a1015;
+  --color-primary-foreground: #111111;
 
-  --color-background: #121118;
-  --color-surface: #1c1a24;
-  --color-text: #f4f4f5;
-  --color-text-muted: #a1a1aa;
-  --color-border: #2e2c38;
+  --color-background: #111111;
+  --color-background-secondary: #181818;
+  --color-surface: #1a1a1a;
+  --color-surface-hover: #232323;
+
+  --color-text: #f5f5f4;
+  --color-text-secondary: #c8c8c6;
+  --color-text-muted: #8f8f8d;
+
+  --color-border: #2c2c2b;
 
   --color-success: #4ade80;
   --color-warning: #fbbf24;
@@ -50,15 +70,21 @@
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --color-primary: #a78bfa;
-    --color-primary-hover: #c4b5fd;
-    --color-primary-foreground: #1e1b2e;
+    --color-primary: #ff3347;
+    --color-primary-hover: #ff5c6d;
+    --color-primary-muted: #3a1015;
+    --color-primary-foreground: #111111;
 
-    --color-background: #121118;
-    --color-surface: #1c1a24;
-    --color-text: #f4f4f5;
-    --color-text-muted: #a1a1aa;
-    --color-border: #2e2c38;
+    --color-background: #111111;
+    --color-background-secondary: #181818;
+    --color-surface: #1a1a1a;
+    --color-surface-hover: #232323;
+
+    --color-text: #f5f5f4;
+    --color-text-secondary: #c8c8c6;
+    --color-text-muted: #8f8f8d;
+
+    --color-border: #2c2c2b;
 
     --color-success: #4ade80;
     --color-warning: #fbbf24;
