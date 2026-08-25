@@ -96,6 +96,60 @@ async function main() {
     await prisma.employee.upsert({ where: { email: e.email }, update: {}, create: e });
   }
 
+  const departmentNames = ["Development", "Design", "Marketing", "Sales", "HR"];
+  const departments: Record<string, string> = {};
+  for (const name of departmentNames) {
+    const dept = await prisma.department.upsert({
+      where: { name },
+      update: {},
+      create: { name, description: `${name} department` },
+    });
+    departments[name] = dept.id;
+  }
+
+  const designLead = await prisma.employee.findUnique({ where: { email: "teamlead@simpleplan.media" } });
+
+  const teamDefs = [
+    { name: "Web Development", departmentName: "Development", description: "Website and app builds" },
+    { name: "Creative Studio", departmentName: "Design", teamLeadId: designLead?.id, description: "Graphics and video" },
+    { name: "Growth Marketing", departmentName: "Marketing", description: "Campaigns and content" },
+    { name: "Sales Team", departmentName: "Sales", description: "Client acquisition" },
+  ];
+  for (const t of teamDefs) {
+    const existing = await prisma.team.findFirst({ where: { name: t.name } });
+    if (!existing) {
+      await prisma.team.create({
+        data: {
+          name: t.name,
+          departmentId: departments[t.departmentName]!,
+          teamLeadId: t.teamLeadId,
+          description: t.description,
+        },
+      });
+    }
+  }
+
+  const standardSchedule = await prisma.workSchedule.upsert({
+    where: { id: "00000000-0000-0000-0000-000000000001" },
+    update: {},
+    create: { id: "00000000-0000-0000-0000-000000000001", name: "Standard Office" },
+  });
+  for (let day = 0; day <= 6; day++) {
+    const isWorkingDay = day >= 1 && day <= 5;
+    await prisma.workScheduleDay.upsert({
+      where: { scheduleId_dayOfWeek: { scheduleId: standardSchedule.id, dayOfWeek: day } },
+      update: {},
+      create: {
+        scheduleId: standardSchedule.id,
+        dayOfWeek: day,
+        isWorkingDay,
+        startTime: isWorkingDay ? "09:00" : null,
+        endTime: isWorkingDay ? "18:00" : null,
+        breakMinutes: isWorkingDay ? 60 : 0,
+      },
+    });
+  }
+
   console.log("Seed complete.");
   console.log("Demo credentials (password: Password123!):");
   console.log("  admin1@simpleplan.media (ADMIN)");

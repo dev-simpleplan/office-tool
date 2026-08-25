@@ -5,6 +5,9 @@ import { env } from "./lib/env.js";
 import { authPlugin } from "./plugins/auth.js";
 import { authRoutes } from "./routes/auth.js";
 import { employeeRoutes } from "./routes/employees.js";
+import { departmentRoutes } from "./routes/departments.js";
+import { teamRoutes } from "./routes/teams.js";
+import { scheduleRoutes } from "./routes/schedules.js";
 
 const app = Fastify({ logger: true });
 
@@ -17,6 +20,9 @@ await app.register(authPlugin);
 
 await app.register(authRoutes, { prefix: "/api/auth" });
 await app.register(employeeRoutes, { prefix: "/api/employees" });
+await app.register(departmentRoutes, { prefix: "/api/departments" });
+await app.register(teamRoutes, { prefix: "/api/teams" });
+await app.register(scheduleRoutes, { prefix: "/api/schedules" });
 
 app.get("/health", async () => ({ status: "ok" }));
 

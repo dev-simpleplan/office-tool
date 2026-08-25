@@ -1,6 +1,6 @@
 import type { FastifyInstance } from "fastify";
 import argon2 from "argon2";
-import { CreateEmployeeSchema } from "@office/validation";
+import { CreateEmployeeSchema, UpdateEmployeeSchema } from "@office/validation";
 import { prisma } from "../lib/prisma.js";
 
 export async function employeeRoutes(app: FastifyInstance) {
@@ -16,6 +16,12 @@ export async function employeeRoutes(app: FastifyInstance) {
         hireDate: true,
         status: true,
         salary: canViewSalary,
+        departmentId: true,
+        teamId: true,
+        scheduleId: true,
+        department: { select: { id: true, name: true } },
+        team: { select: { id: true, name: true } },
+        schedule: { select: { id: true, name: true } },
       },
     });
     return reply.send({ employees });
@@ -57,9 +63,22 @@ export async function employeeRoutes(app: FastifyInstance) {
         hireDate: new Date(data.hireDate),
         salary: data.salary,
         userId,
+        departmentId: data.departmentId,
+        teamId: data.teamId,
+        scheduleId: data.scheduleId,
       },
     });
 
     return reply.code(201).send({ employee });
+  });
+
+  app.patch("/:id", { preHandler: app.requirePermission("employees.update") }, async (req, reply) => {
+    const { id } = req.params as { id: string };
+    const parsed = UpdateEmployeeSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return reply.code(400).send({ error: "invalid_input", issues: parsed.error.issues });
+    }
+    const employee = await prisma.employee.update({ where: { id }, data: parsed.data });
+    return reply.send({ employee });
   });
 }

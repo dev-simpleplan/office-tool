@@ -5,7 +5,7 @@ import { CreateEmployeeSchema, type CreateEmployeeInput } from "@office/validati
 import { Button, Input, Table, Badge } from "@office/ui";
 import { api } from "../lib/api";
 import { useAuthStore } from "../store/authStore";
-import type { EmployeeSummary } from "@office/shared";
+import type { EmployeeSummary, DepartmentSummary, TeamSummary, WorkScheduleSummary } from "@office/shared";
 import { useState } from "react";
 
 export function EmployeesPage() {
@@ -18,6 +18,21 @@ export function EmployeesPage() {
   const { data, isLoading } = useQuery({
     queryKey: ["employees"],
     queryFn: () => api.get<{ employees: EmployeeSummary[] }>("/api/employees"),
+  });
+  const { data: deptData } = useQuery({
+    queryKey: ["departments"],
+    queryFn: () => api.get<{ departments: DepartmentSummary[] }>("/api/departments"),
+    enabled: !!canCreate,
+  });
+  const { data: teamData } = useQuery({
+    queryKey: ["teams"],
+    queryFn: () => api.get<{ teams: TeamSummary[] }>("/api/teams"),
+    enabled: !!canCreate,
+  });
+  const { data: scheduleData } = useQuery({
+    queryKey: ["schedules"],
+    queryFn: () => api.get<{ schedules: WorkScheduleSummary[] }>("/api/schedules"),
+    enabled: !!canCreate,
   });
 
   const {
@@ -78,6 +93,39 @@ export function EmployeesPage() {
               <Input type="number" step="0.01" {...register("salary", { valueAsNumber: true })} />
             </div>
           )}
+          <div>
+            <label className="mb-1 block text-sm font-medium">Department</label>
+            <select className="op-input" {...register("departmentId")}>
+              <option value="">None</option>
+              {deptData?.departments.map((d) => (
+                <option key={d.id} value={d.id}>
+                  {d.name}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium">Team</label>
+            <select className="op-input" {...register("teamId")}>
+              <option value="">None</option>
+              {teamData?.teams.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.name}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium">Work Schedule</label>
+            <select className="op-input" {...register("scheduleId")}>
+              <option value="">None</option>
+              {scheduleData?.schedules.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name}
+                </option>
+              ))}
+            </select>
+          </div>
           <div className="sm:col-span-2">
             <Button type="submit" disabled={isSubmitting || createMutation.isPending}>
               {createMutation.isPending ? "Saving..." : "Save Employee"}
@@ -98,6 +146,8 @@ export function EmployeesPage() {
               <th>Name</th>
               <th>Title</th>
               <th>Email</th>
+              <th>Department</th>
+              <th>Team</th>
               <th>Status</th>
               {canViewSalary && <th>Salary</th>}
             </tr>
@@ -108,6 +158,8 @@ export function EmployeesPage() {
                 <td>{e.fullName}</td>
                 <td>{e.jobTitle}</td>
                 <td>{e.email}</td>
+                <td>{e.department?.name ?? "-"}</td>
+                <td>{e.team?.name ?? "-"}</td>
                 <td>
                   <Badge variant={e.status === "ACTIVE" ? "success" : "warning"}>{e.status}</Badge>
                 </td>

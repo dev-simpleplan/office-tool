@@ -3,6 +3,9 @@ import { Layout } from "./components/Layout";
 import { LoginPage } from "./pages/LoginPage";
 import { DashboardPage } from "./pages/DashboardPage";
 import { EmployeesPage } from "./pages/EmployeesPage";
+import { DepartmentsPage } from "./pages/DepartmentsPage";
+import { TeamsPage } from "./pages/TeamsPage";
+import { SchedulesPage } from "./pages/SchedulesPage";
 import { useCurrentUser } from "./lib/useCurrentUser";
 
 function ProtectedRoutes() {
@@ -27,6 +30,9 @@ export default function App() {
       <Route element={<ProtectedRoutes />}>
         <Route path="/" element={<DashboardPage />} />
         <Route path="/employees" element={<EmployeesPage />} />
+        <Route path="/departments" element={<DepartmentsPage />} />
+        <Route path="/teams" element={<TeamsPage />} />
+        <Route path="/schedules" element={<SchedulesPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

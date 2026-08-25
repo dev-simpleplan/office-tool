@@ -1,5 +1,5 @@
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
-import { LayoutDashboard, Users, LogOut, Moon, Sun, Monitor } from "lucide-react";
+import { LayoutDashboard, Users, LogOut, Moon, Sun, Monitor, Building2, UsersRound, CalendarClock } from "lucide-react";
 import { useAuthStore } from "../store/authStore";
 import { useUiStore } from "../store/uiStore";
 import { api } from "../lib/api";
@@ -33,6 +33,14 @@ export function Layout() {
         >
           <LayoutDashboard size={18} /> Dashboard
         </NavLink>
+        {(user?.permissions.includes("employees.view") ||
+          user?.permissions.includes("departments.view") ||
+          user?.permissions.includes("teams.view") ||
+          user?.permissions.includes("schedules.view")) && (
+          <div className="mt-4 px-2 text-xs font-semibold uppercase tracking-wide text-text-muted">
+            People
+          </div>
+        )}
         {user?.permissions.includes("employees.view") && (
           <NavLink
             to="/employees"
@@ -41,6 +49,36 @@ export function Layout() {
             }
           >
             <Users size={18} /> Employees
+          </NavLink>
+        )}
+        {user?.permissions.includes("teams.view") && (
+          <NavLink
+            to="/teams"
+            className={({ isActive }) =>
+              `flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium ${isActive ? "bg-primary text-primary-foreground" : "text-text hover:bg-background"}`
+            }
+          >
+            <UsersRound size={18} /> Teams
+          </NavLink>
+        )}
+        {user?.permissions.includes("departments.view") && (
+          <NavLink
+            to="/departments"
+            className={({ isActive }) =>
+              `flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium ${isActive ? "bg-primary text-primary-foreground" : "text-text hover:bg-background"}`
+            }
+          >
+            <Building2 size={18} /> Departments
+          </NavLink>
+        )}
+        {user?.permissions.includes("schedules.view") && (
+          <NavLink
+            to="/schedules"
+            className={({ isActive }) =>
+              `flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium ${isActive ? "bg-primary text-primary-foreground" : "text-text hover:bg-background"}`
+            }
+          >
+            <CalendarClock size={18} /> Schedules
           </NavLink>
         )}
       </aside>

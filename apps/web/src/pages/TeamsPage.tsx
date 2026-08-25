@@ -1,0 +1,145 @@
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { CreateTeamSchema, type CreateTeamInput } from "@office/validation";
+import { Button, Input, Table } from "@office/ui";
+import { api } from "../lib/api";
+import { useAuthStore } from "../store/authStore";
+import type { DepartmentSummary, TeamSummary, EmployeeSummary } from "@office/shared";
+import { useState } from "react";
+
+export function TeamsPage() {
+  const user = useAuthStore((s) => s.user);
+  const canCreate = user?.permissions.includes("teams.create");
+  const [showForm, setShowForm] = useState(false);
+  const queryClient = useQueryClient();
+
+  const { data, isLoading } = useQuery({
+    queryKey: ["teams"],
+    queryFn: () => api.get<{ teams: TeamSummary[] }>("/api/teams"),
+  });
+  const { data: deptData } = useQuery({
+    queryKey: ["departments"],
+    queryFn: () => api.get<{ departments: DepartmentSummary[] }>("/api/departments"),
+    enabled: canCreate,
+  });
+  const { data: empData } = useQuery({
+    queryKey: ["employees"],
+    queryFn: () => api.get<{ employees: EmployeeSummary[] }>("/api/employees"),
+    enabled: canCreate,
+  });
+
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors, isSubmitting },
+  } = useForm<CreateTeamInput>({ resolver: zodResolver(CreateTeamSchema) });
+
+  const createMutation = useMutation({
+    mutationFn: (input: CreateTeamInput) => api.post("/api/teams", input),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["teams"] });
+      reset();
+      setShowForm(false);
+    },
+  });
+
+  return (
+    <div>
+      <div className="mb-6 flex items-center justify-between">
+        <h1 className="text-2xl font-bold">Teams</h1>
+        {canCreate && (
+          <Button onClick={() => setShowForm((s) => !s)}>
+            {showForm ? "Cancel" : "Add Team"}
+          </Button>
+        )}
+      </div>
+
+      {showForm && canCreate && (
+        <form
+          onSubmit={handleSubmit((data) => createMutation.mutate(data))}
+          className="mb-6 grid grid-cols-1 gap-4 rounded-lg border border-border bg-surface p-6 sm:grid-cols-2"
+        >
+          <div>
+            <label className="mb-1 block text-sm font-medium">Name</label>
+            <Input {...register("name")} />
+            {errors.name && <p className="mt-1 text-xs text-danger">{errors.name.message}</p>}
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium">Department</label>
+            <select className="op-input" {...register("departmentId")}>
+              <option value="">Select department</option>
+              {deptData?.departments.map((d) => (
+                <option key={d.id} value={d.id}>
+                  {d.name}
+                </option>
+              ))}
+            </select>
+            {errors.departmentId && (
+              <p className="mt-1 text-xs text-danger">{errors.departmentId.message}</p>
+            )}
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium">Team Lead</label>
+            <select className="op-input" {...register("teamLeadId")}>
+              <option value="">None</option>
+              {empData?.employees.map((e) => (
+                <option key={e.id} value={e.id}>
+                  {e.fullName}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium">Description</label>
+            <Input {...register("description")} />
+          </div>
+          <div className="sm:col-span-2">
+            <label className="mb-1 block text-sm font-medium">Members</label>
+            <select className="op-input h-32" multiple {...register("memberIds")}>
+              {empData?.employees.map((e) => (
+                <option key={e.id} value={e.id}>
+                  {e.fullName}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="sm:col-span-2">
+            <Button type="submit" disabled={isSubmitting || createMutation.isPending}>
+              {createMutation.isPending ? "Saving..." : "Save Team"}
+            </Button>
+            {createMutation.isError && (
+              <p className="mt-2 text-sm text-danger">Failed to create team.</p>
+            )}
+          </div>
+        </form>
+      )}
+
+      {isLoading ? (
+        <p className="text-text-muted">Loading...</p>
+      ) : (
+        <Table>
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Department</th>
+              <th>Team Lead</th>
+              <th>Members</th>
+            </tr>
+          </thead>
+          <tbody>
+            {data?.teams.map((t) => (
+              <tr key={t.id}>
+                <td>{t.name}</td>
+                <td>{t.department?.name ?? "-"}</td>
+                <td>{t.teamLead?.fullName ?? "-"}</td>
+                <td>{t.members.length}</td>
+              </tr>
+            ))}
+          </tbody>
+        </Table>
+      )}
+    </div>
+  );
+}

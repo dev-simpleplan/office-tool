@@ -68,20 +68,103 @@ enum EmployeeStatus {
   ARCHIVED
 }
 
+enum RecordStatus {
+  ACTIVE
+  ARCHIVED
+}
+
 model Employee {
-  id         String         @id @default(uuid()) @db.Uuid
-  fullName   String         @map("full_name")
-  jobTitle   String         @map("job_title")
-  email      String         @unique
-  hireDate   DateTime       @map("hire_date")
-  salary     Decimal?       @db.Decimal(12, 2)
-  status     EmployeeStatus @default(ACTIVE)
-  userId     String?        @unique @map("user_id") @db.Uuid
-  user       User?          @relation(fields: [userId], references: [id], onDelete: SetNull)
-  departmentId String?      @map("department_id") @db.Uuid
-  createdAt  DateTime       @default(now()) @map("created_at")
-  updatedAt  DateTime       @updatedAt @map("updated_at")
+  id           String         @id @default(uuid()) @db.Uuid
+  fullName     String         @map("full_name")
+  jobTitle     String         @map("job_title")
+  email        String         @unique
+  hireDate     DateTime       @map("hire_date")
+  salary       Decimal?       @db.Decimal(12, 2)
+  status       EmployeeStatus @default(ACTIVE)
+  userId       String?        @unique @map("user_id") @db.Uuid
+  user         User?          @relation(fields: [userId], references: [id], onDelete: SetNull)
+  departmentId String?        @map("department_id") @db.Uuid
+  department   Department?    @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  teamId       String?        @map("team_id") @db.Uuid
+  team         Team?          @relation(fields: [teamId], references: [id], onDelete: SetNull)
+  scheduleId   String?        @map("schedule_id") @db.Uuid
+  schedule     WorkSchedule?  @relation(fields: [scheduleId], references: [id], onDelete: SetNull)
+  createdAt    DateTime       @default(now()) @map("created_at")
+  updatedAt    DateTime       @updatedAt @map("updated_at")
+
+  ledTeams     Team[]         @relation("TeamLead")
+  teamMemberships TeamMember[]
 
   @@index([status])
+  @@index([departmentId])
+  @@index([teamId])
+  @@index([scheduleId])
   @@map("employees")
+}
+
+model Department {
+  id          String       @id @default(uuid()) @db.Uuid
+  name        String       @unique
+  description String?
+  status      RecordStatus @default(ACTIVE)
+  createdAt   DateTime     @default(now()) @map("created_at")
+  updatedAt   DateTime     @updatedAt @map("updated_at")
+  employees   Employee[]
+  teams       Team[]
+
+  @@map("departments")
+}
+
+model Team {
+  id           String       @id @default(uuid()) @db.Uuid
+  name         String
+  departmentId String       @map("department_id") @db.Uuid
+  department   Department   @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+  teamLeadId   String?      @map("team_lead_id") @db.Uuid
+  teamLead     Employee?    @relation("TeamLead", fields: [teamLeadId], references: [id], onDelete: SetNull)
+  description  String?
+  status       RecordStatus @default(ACTIVE)
+  createdAt    DateTime     @default(now()) @map("created_at")
+  updatedAt    DateTime     @updatedAt @map("updated_at")
+  employees    Employee[]
+  members      TeamMember[]
+
+  @@index([departmentId])
+  @@map("teams")
+}
+
+model TeamMember {
+  teamId     String   @map("team_id") @db.Uuid
+  employeeId String   @map("employee_id") @db.Uuid
+  team       Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@id([teamId, employeeId])
+  @@map("team_members")
+}
+
+model WorkSchedule {
+  id        String            @id @default(uuid()) @db.Uuid
+  name      String
+  createdAt DateTime          @default(now()) @map("created_at")
+  updatedAt DateTime          @updatedAt @map("updated_at")
+  days      WorkScheduleDay[]
+  employees Employee[]
+
+  @@map("work_schedules")
+}
+
+model WorkScheduleDay {
+  id            String       @id @default(uuid()) @db.Uuid
+  scheduleId    String       @map("schedule_id") @db.Uuid
+  schedule      WorkSchedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+  dayOfWeek     Int          @map("day_of_week")
+  isWorkingDay  Boolean      @default(true) @map("is_working_day")
+  startTime     String?      @map("start_time")
+  endTime       String?      @map("end_time")
+  breakMinutes  Int          @default(0) @map("break_minutes")
+
+  @@unique([scheduleId, dayOfWeek])
+  @@map("work_schedule_days")
 }
