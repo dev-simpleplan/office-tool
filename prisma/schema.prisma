@@ -93,7 +93,6 @@ model Employee {
   updatedAt    DateTime       @updatedAt @map("updated_at")
 
   ledTeams     Team[]         @relation("TeamLead")
-  teamMemberships TeamMember[]
 
   @@index([status])
   @@index([departmentId])
@@ -127,21 +126,9 @@ model Team {
   createdAt    DateTime     @default(now()) @map("created_at")
   updatedAt    DateTime     @updatedAt @map("updated_at")
   employees    Employee[]
-  members      TeamMember[]
 
   @@index([departmentId])
   @@map("teams")
-}
-
-model TeamMember {
-  teamId     String   @map("team_id") @db.Uuid
-  employeeId String   @map("employee_id") @db.Uuid
-  team       Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
-  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
-  createdAt  DateTime @default(now()) @map("created_at")
-
-  @@id([teamId, employeeId])
-  @@map("team_members")
 }
 
 model WorkSchedule {

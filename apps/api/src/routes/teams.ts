@@ -5,7 +5,7 @@ import { prisma } from "../lib/prisma.js";
 const teamInclude = {
   department: { select: { id: true, name: true } },
   teamLead: { select: { id: true, fullName: true } },
-  members: { include: { employee: { select: { id: true, fullName: true } } } },
+  employees: { select: { id: true, fullName: true } },
 } as const;
 
 function serializeTeam(team: {
@@ -17,7 +17,7 @@ function serializeTeam(team: {
   department: { id: string; name: string } | null;
   teamLeadId: string | null;
   teamLead: { id: string; fullName: string } | null;
-  members: { employee: { id: string; fullName: string } }[];
+  employees: { id: string; fullName: string }[];
   createdAt: Date;
   updatedAt: Date;
 }) {
@@ -30,10 +30,26 @@ function serializeTeam(team: {
     department: team.department,
     teamLeadId: team.teamLeadId,
     teamLead: team.teamLead,
-    members: team.members.map((m) => ({ id: m.employee.id, fullName: m.employee.fullName })),
+    members: team.employees,
     createdAt: team.createdAt,
     updatedAt: team.updatedAt,
   };
+}
+
+/** Employee.teamId is the single source of truth for membership — reassign
+ *  it for exactly the given employees, and clear it for anyone previously on
+ *  this team who was dropped from the selection. */
+async function syncMembers(teamId: string, memberIds: string[]) {
+  await prisma.employee.updateMany({
+    where: { teamId, id: { notIn: memberIds } },
+    data: { teamId: null },
+  });
+  if (memberIds.length > 0) {
+    await prisma.employee.updateMany({
+      where: { id: { in: memberIds } },
+      data: { teamId },
+    });
+  }
 }
 
 export async function teamRoutes(app: FastifyInstance) {
@@ -48,14 +64,12 @@ export async function teamRoutes(app: FastifyInstance) {
       return reply.code(400).send({ error: "invalid_input", issues: parsed.error.issues });
     }
     const { memberIds, ...data } = parsed.data;
-    const team = await prisma.team.create({
-      data: {
-        ...data,
-        members: { create: memberIds.map((employeeId: string) => ({ employeeId })) },
-      },
-      include: teamInclude,
-    });
-    return reply.code(201).send({ team: serializeTeam(team) });
+    const team = await prisma.team.create({ data, include: teamInclude });
+    if (memberIds.length > 0) {
+      await syncMembers(team.id, memberIds);
+    }
+    const fresh = await prisma.team.findUniqueOrThrow({ where: { id: team.id }, include: teamInclude });
+    return reply.code(201).send({ team: serializeTeam(fresh) });
   });
 
   app.patch("/:id", { preHandler: app.requirePermission("teams.update") }, async (req, reply) => {
@@ -65,22 +79,12 @@ export async function teamRoutes(app: FastifyInstance) {
       return reply.code(400).send({ error: "invalid_input", issues: parsed.error.issues });
     }
     const { memberIds, ...data } = parsed.data;
-    const team = await prisma.team.update({
-      where: { id },
-      data: {
-        ...data,
-        ...(memberIds
-          ? {
-              members: {
-                deleteMany: {},
-                create: memberIds.map((employeeId: string) => ({ employeeId })),
-              },
-            }
-          : {}),
-      },
-      include: teamInclude,
-    });
-    return reply.send({ team: serializeTeam(team) });
+    await prisma.team.update({ where: { id }, data });
+    if (memberIds) {
+      await syncMembers(id, memberIds);
+    }
+    const fresh = await prisma.team.findUniqueOrThrow({ where: { id }, include: teamInclude });
+    return reply.send({ team: serializeTeam(fresh) });
   });
 
   app.post("/:id/archive", { preHandler: app.requirePermission("teams.archive") }, async (req, reply) => {
