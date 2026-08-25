@@ -6,6 +6,7 @@ import { api, ApiError } from "../lib/api";
 import { useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
+import type { AuthUser } from "@office/shared";
 
 export function LoginPage() {
   const navigate = useNavigate();
@@ -21,7 +22,13 @@ export function LoginPage() {
     setServerError(null);
     try {
       await api.post("/api/auth/login", data);
-      await queryClient.invalidateQueries({ queryKey: ["me"] });
+      // ProtectedRoutes reads the "me" query the instant it mounts after
+      // navigate() below. invalidateQueries() alone doesn't help here: no
+      // component is subscribed to "me" while we're still on /login, so it
+      // wouldn't actually refetch before that mount — populate the cache
+      // directly so the fresh session is there from the first render.
+      const me = await api.get<{ user: AuthUser }>("/api/auth/me");
+      queryClient.setQueryData(["me"], me);
       navigate("/");
     } catch (e) {
       if (e instanceof ApiError) {

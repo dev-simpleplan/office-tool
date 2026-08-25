@@ -69,7 +69,18 @@ export interface WorkScheduleDaySummary {
 export interface WorkScheduleSummary {
   id: string;
   name: string;
+  status: "ACTIVE" | "ARCHIVED";
   days: WorkScheduleDaySummary[];
   createdAt: string;
   updatedAt: string;
+}
+
+export interface AppraisalSummary {
+  id: string;
+  employeeId: string;
+  appraisalDate: string;
+  percentageHike: number;
+  notes?: string | null;
+  createdBy?: { id: string; email: string } | null;
+  createdAt: string;
 }

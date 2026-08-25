@@ -2,7 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { CreateWorkScheduleSchema, type CreateWorkScheduleInput } from "@office/validation";
-import { Button, Input, Table } from "@office/ui";
+import { Button, Input, Table, Badge, ConfirmDialog } from "@office/ui";
 import { api } from "../lib/api";
 import { useAuthStore } from "../store/authStore";
 import type { WorkScheduleSummary } from "@office/shared";
@@ -21,7 +21,11 @@ const DEFAULT_DAYS = Array.from({ length: 7 }, (_, dayOfWeek) => ({
 export function SchedulesPage() {
   const user = useAuthStore((s) => s.user);
   const canCreate = user?.permissions.includes("schedules.create");
+  const canUpdate = user?.permissions.includes("schedules.update");
+  const canArchive = user?.permissions.includes("schedules.archive");
   const [showForm, setShowForm] = useState(false);
+  const [editingSchedule, setEditingSchedule] = useState<WorkScheduleSummary | null>(null);
+  const [archiveTarget, setArchiveTarget] = useState<WorkScheduleSummary | null>(null);
   const queryClient = useQueryClient();
 
   const { data, isLoading } = useQuery({
@@ -41,31 +45,82 @@ export function SchedulesPage() {
   });
   const { fields } = useFieldArray({ control, name: "days" });
 
+  function closeForm() {
+    reset({ name: "", days: DEFAULT_DAYS });
+    setShowForm(false);
+    setEditingSchedule(null);
+  }
+
+  function openCreateForm() {
+    reset({ name: "", days: DEFAULT_DAYS });
+    setEditingSchedule(null);
+    setShowForm(true);
+  }
+
+  function openEditForm(schedule: WorkScheduleSummary) {
+    reset({
+      name: schedule.name,
+      days: DAY_LABELS.map((_, dayOfWeek) => {
+        const existing = schedule.days.find((d) => d.dayOfWeek === dayOfWeek);
+        return {
+          dayOfWeek,
+          isWorkingDay: existing?.isWorkingDay ?? false,
+          startTime: existing?.startTime ?? "",
+          endTime: existing?.endTime ?? "",
+          breakMinutes: existing?.breakMinutes ?? 0,
+        };
+      }),
+    });
+    setEditingSchedule(schedule);
+    setShowForm(true);
+  }
+
   const createMutation = useMutation({
     mutationFn: (input: CreateWorkScheduleInput) => api.post("/api/schedules", input),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["schedules"] });
-      reset({ name: "", days: DEFAULT_DAYS });
-      setShowForm(false);
+      closeForm();
     },
   });
+
+  const updateMutation = useMutation({
+    mutationFn: (input: CreateWorkScheduleInput) =>
+      api.patch(`/api/schedules/${editingSchedule!.id}`, input),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["schedules"] });
+      closeForm();
+    },
+  });
+
+  const archiveMutation = useMutation({
+    mutationFn: (id: string) => api.post(`/api/schedules/${id}/archive`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["schedules"] });
+      setArchiveTarget(null);
+    },
+  });
+
+  const activeMutation = editingSchedule ? updateMutation : createMutation;
 
   return (
     <div>
       <div className="mb-6 flex items-center justify-between">
         <h1 className="text-2xl font-bold">Work Schedules</h1>
         {canCreate && (
-          <Button onClick={() => setShowForm((s) => !s)}>
+          <Button onClick={() => (showForm ? closeForm() : openCreateForm())}>
             {showForm ? "Cancel" : "Add Schedule"}
           </Button>
         )}
       </div>
 
-      {showForm && canCreate && (
+      {showForm && (canCreate || canUpdate) && (
         <form
-          onSubmit={handleSubmit((data) => createMutation.mutate(data))}
+          onSubmit={handleSubmit((formData) => activeMutation.mutate(formData))}
           className="mb-6 rounded-lg border border-border bg-surface p-6"
         >
+          {editingSchedule && (
+            <p className="mb-4 text-sm text-text-muted">Editing "{editingSchedule.name}"</p>
+          )}
           <div className="mb-4 max-w-sm">
             <label className="mb-1 block text-sm font-medium">Name</label>
             <Input {...register("name")} />
@@ -109,12 +164,17 @@ export function SchedulesPage() {
             </table>
           </div>
 
-          <div className="mt-4">
-            <Button type="submit" disabled={isSubmitting || createMutation.isPending}>
-              {createMutation.isPending ? "Saving..." : "Save Schedule"}
+          <div className="mt-4 flex items-center gap-3">
+            <Button type="submit" disabled={isSubmitting || activeMutation.isPending}>
+              {activeMutation.isPending ? "Saving..." : editingSchedule ? "Update Schedule" : "Save Schedule"}
             </Button>
-            {createMutation.isError && (
-              <p className="mt-2 text-sm text-danger">Failed to create schedule.</p>
+            {editingSchedule && (
+              <Button type="button" variant="secondary" onClick={closeForm}>
+                Cancel Edit
+              </Button>
+            )}
+            {activeMutation.isError && (
+              <p className="text-sm text-danger">Failed to save schedule.</p>
             )}
           </div>
         </form>
@@ -128,6 +188,8 @@ export function SchedulesPage() {
             <tr>
               <th>Name</th>
               <th>Working Days</th>
+              <th>Status</th>
+              {(canUpdate || canArchive) && <th>Actions</th>}
             </tr>
           </thead>
           <tbody>
@@ -140,11 +202,42 @@ export function SchedulesPage() {
                     .map((d) => DAY_LABELS[d.dayOfWeek])
                     .join(", ") || "None"}
                 </td>
+                <td>
+                  <Badge variant={s.status === "ACTIVE" ? "success" : "warning"}>{s.status}</Badge>
+                </td>
+                {(canUpdate || canArchive) && (
+                  <td>
+                    {s.status === "ACTIVE" && (
+                      <div className="flex gap-2">
+                        {canUpdate && (
+                          <Button variant="ghost" onClick={() => openEditForm(s)}>
+                            Edit
+                          </Button>
+                        )}
+                        {canArchive && (
+                          <Button variant="ghost" onClick={() => setArchiveTarget(s)}>
+                            Archive
+                          </Button>
+                        )}
+                      </div>
+                    )}
+                  </td>
+                )}
               </tr>
             ))}
           </tbody>
         </Table>
       )}
+
+      <ConfirmDialog
+        open={!!archiveTarget}
+        title="Archive Schedule"
+        description={`Are you sure you want to archive "${archiveTarget?.name}"? It will no longer be assignable to employees.`}
+        confirmLabel="Archive"
+        pending={archiveMutation.isPending}
+        onConfirm={() => archiveTarget && archiveMutation.mutate(archiveTarget.id)}
+        onCancel={() => setArchiveTarget(null)}
+      />
     </div>
   );
 }

@@ -48,4 +48,14 @@ export async function scheduleRoutes(app: FastifyInstance) {
     });
     return reply.send({ schedule });
   });
+
+  app.post("/:id/archive", { preHandler: app.requirePermission("schedules.archive") }, async (req, reply) => {
+    const { id } = req.params as { id: string };
+    const schedule = await prisma.workSchedule.update({
+      where: { id },
+      data: { status: "ARCHIVED" },
+      include: { days: { orderBy: { dayOfWeek: "asc" } } },
+    });
+    return reply.send({ schedule });
+  });
 }

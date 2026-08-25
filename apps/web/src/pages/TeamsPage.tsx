@@ -1,8 +1,8 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useForm } from "react-hook-form";
+import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { CreateTeamSchema, type CreateTeamInput } from "@office/validation";
-import { Button, Input, Table } from "@office/ui";
+import { Button, Input, Table, MultiSelect, Badge, ConfirmDialog } from "@office/ui";
 import { api } from "../lib/api";
 import { useAuthStore } from "../store/authStore";
 import type { DepartmentSummary, TeamSummary, EmployeeSummary } from "@office/shared";
@@ -12,8 +12,10 @@ export function TeamsPage() {
   const user = useAuthStore((s) => s.user);
   const canCreate = user?.permissions.includes("teams.create");
   const canUpdate = user?.permissions.includes("teams.update");
+  const canArchive = user?.permissions.includes("teams.archive");
   const [showForm, setShowForm] = useState(false);
   const [editingTeam, setEditingTeam] = useState<TeamSummary | null>(null);
+  const [archiveTarget, setArchiveTarget] = useState<TeamSummary | null>(null);
   const queryClient = useQueryClient();
 
   const { data, isLoading } = useQuery({
@@ -35,6 +37,7 @@ export function TeamsPage() {
     register,
     handleSubmit,
     reset,
+    control,
     formState: { errors, isSubmitting },
   } = useForm<CreateTeamInput>({ resolver: zodResolver(CreateTeamSchema) });
 
@@ -75,6 +78,14 @@ export function TeamsPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["teams"] });
       closeForm();
+    },
+  });
+
+  const archiveMutation = useMutation({
+    mutationFn: (id: string) => api.post(`/api/teams/${id}/archive`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["teams"] });
+      setArchiveTarget(null);
     },
   });
 
@@ -135,13 +146,18 @@ export function TeamsPage() {
           </div>
           <div className="sm:col-span-2">
             <label className="mb-1 block text-sm font-medium">Members</label>
-            <select className="op-input h-32" multiple {...register("memberIds")}>
-              {empData?.employees.map((e) => (
-                <option key={e.id} value={e.id}>
-                  {e.fullName}
-                </option>
-              ))}
-            </select>
+            <Controller
+              name="memberIds"
+              control={control}
+              render={({ field }) => (
+                <MultiSelect
+                  options={(empData?.employees ?? []).map((e) => ({ id: e.id, label: e.fullName }))}
+                  selected={field.value ?? []}
+                  onChange={field.onChange}
+                  searchPlaceholder="Search employees..."
+                />
+              )}
+            />
           </div>
           <div className="sm:col-span-2 flex items-center gap-3">
             <Button type="submit" disabled={isSubmitting || activeMutation.isPending}>
@@ -169,6 +185,8 @@ export function TeamsPage() {
               <th>Department</th>
               <th>Team Lead</th>
               <th>Members</th>
+              <th>Status</th>
+              {canArchive && <th>Actions</th>}
             </tr>
           </thead>
           <tbody>
@@ -182,11 +200,39 @@ export function TeamsPage() {
                 <td>{t.department?.name ?? "-"}</td>
                 <td>{t.teamLead?.fullName ?? "-"}</td>
                 <td>{t.members.length}</td>
+                <td>
+                  <Badge variant={t.status === "ACTIVE" ? "success" : "warning"}>{t.status}</Badge>
+                </td>
+                {canArchive && (
+                  <td>
+                    {t.status === "ACTIVE" && (
+                      <Button
+                        variant="ghost"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setArchiveTarget(t);
+                        }}
+                      >
+                        Archive
+                      </Button>
+                    )}
+                  </td>
+                )}
               </tr>
             ))}
           </tbody>
         </Table>
       )}
+
+      <ConfirmDialog
+        open={!!archiveTarget}
+        title="Archive Team"
+        description={`Are you sure you want to archive "${archiveTarget?.name}"? Its members will need to be reassigned.`}
+        confirmLabel="Archive"
+        pending={archiveMutation.isPending}
+        onConfirm={() => archiveTarget && archiveMutation.mutate(archiveTarget.id)}
+        onCancel={() => setArchiveTarget(null)}
+      />
     </div>
   );
 }

@@ -1,6 +1,6 @@
 import type { FastifyInstance } from "fastify";
 import argon2 from "argon2";
-import { CreateEmployeeSchema, UpdateEmployeeSchema } from "@office/validation";
+import { CreateEmployeeSchema, UpdateEmployeeSchema, CreateAppraisalSchema } from "@office/validation";
 import { prisma } from "../lib/prisma.js";
 
 export async function employeeRoutes(app: FastifyInstance) {
@@ -111,4 +111,47 @@ export async function employeeRoutes(app: FastifyInstance) {
     const employee = await prisma.employee.update({ where: { id }, data: parsed.data });
     return reply.send({ employee });
   });
+
+  app.post("/:id/archive", { preHandler: app.requirePermission("employees.archive") }, async (req, reply) => {
+    const { id } = req.params as { id: string };
+    const employee = await prisma.employee.update({ where: { id }, data: { status: "ARCHIVED" } });
+    return reply.send({ employee });
+  });
+
+  app.get(
+    "/:id/appraisals",
+    { preHandler: app.requirePermission("appraisals.view") },
+    async (req, reply) => {
+      const { id } = req.params as { id: string };
+      const appraisals = await prisma.employeeAppraisal.findMany({
+        where: { employeeId: id },
+        orderBy: { appraisalDate: "desc" },
+        include: { createdBy: { select: { id: true, email: true } } },
+      });
+      return reply.send({ appraisals });
+    },
+  );
+
+  app.post(
+    "/:id/appraisals",
+    { preHandler: app.requirePermission("appraisals.create") },
+    async (req, reply) => {
+      const { id } = req.params as { id: string };
+      const parsed = CreateAppraisalSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return reply.code(400).send({ error: "invalid_input", issues: parsed.error.issues });
+      }
+      const appraisal = await prisma.employeeAppraisal.create({
+        data: {
+          employeeId: id,
+          appraisalDate: new Date(parsed.data.appraisalDate),
+          percentageHike: parsed.data.percentageHike,
+          notes: parsed.data.notes,
+          createdById: req.user!.id,
+        },
+        include: { createdBy: { select: { id: true, email: true } } },
+      });
+      return reply.code(201).send({ appraisal });
+    },
+  );
 }

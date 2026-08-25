@@ -19,6 +19,9 @@ export const PERMISSIONS = [
   "schedules.view",
   "schedules.create",
   "schedules.update",
+  "schedules.archive",
+  "appraisals.view",
+  "appraisals.create",
 ] as const;
 export type PermissionName = (typeof PERMISSIONS)[number];
 
@@ -41,6 +44,9 @@ export const ROLE_PERMISSIONS: Record<RoleName, PermissionName[]> = {
     "schedules.view",
     "schedules.create",
     "schedules.update",
+    "schedules.archive",
+    "appraisals.view",
+    "appraisals.create",
   ],
   TEAM_LEAD: ["employees.view", "departments.view", "teams.view", "schedules.view"],
   EMPLOYEE: ["employees.view", "departments.view", "teams.view", "schedules.view"],
