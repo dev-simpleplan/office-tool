@@ -11,3 +11,4 @@ apps/api/src/generated/
 .DS_Store
 apps/desktop/out/
 apps/desktop/release/
+storage/

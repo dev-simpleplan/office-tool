@@ -1,6 +1,7 @@
 import Fastify from "fastify";
 import cookie from "@fastify/cookie";
 import cors from "@fastify/cors";
+import multipart from "@fastify/multipart";
 import { env } from "./lib/env.js";
 import { authPlugin } from "./plugins/auth.js";
 import { authRoutes } from "./routes/auth.js";
@@ -16,6 +17,9 @@ await app.register(cors, {
   credentials: true,
 });
 await app.register(cookie);
+await app.register(multipart, {
+  limits: { fileSize: 5 * 1024 * 1024 },
+});
 await app.register(authPlugin);
 
 await app.register(authRoutes, { prefix: "/api/auth" });

@@ -32,4 +32,26 @@ export const api = {
     request<T>(path, { method: "POST", body: data ? JSON.stringify(data) : undefined }),
   patch: <T>(path: string, data?: unknown) =>
     request<T>(path, { method: "PATCH", body: data ? JSON.stringify(data) : undefined }),
+  async postFile<T>(path: string, file: File): Promise<T> {
+    const form = new FormData();
+    form.append("file", file);
+    const res = await fetch(`${API_URL}${path}`, {
+      method: "POST",
+      credentials: "include",
+      body: form,
+    });
+    const body = await res.json().catch(() => null);
+    if (!res.ok) {
+      throw new ApiError(res.status, body);
+    }
+    return body as T;
+  },
+  async getBlobUrl(path: string): Promise<string | null> {
+    const res = await fetch(`${API_URL}${path}`, { credentials: "include" });
+    if (!res.ok) {
+      return null;
+    }
+    const blob = await res.blob();
+    return URL.createObjectURL(blob);
+  },
 };

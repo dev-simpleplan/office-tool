@@ -22,5 +22,7 @@ export const UpdateEmployeeSchema = z.object({
   departmentId: optionalUuid(),
   teamId: optionalUuid(),
   scheduleId: optionalUuid(),
+  leavesAvailable: z.number().int().min(0).optional(),
+  leavesTaken: z.number().int().min(0).optional(),
 });
 export type UpdateEmployeeInput = z.infer<typeof UpdateEmployeeSchema>;

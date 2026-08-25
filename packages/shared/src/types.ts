@@ -5,6 +5,7 @@ export interface AuthUser {
   email: string;
   roleName: RoleName;
   permissions: string[];
+  employeeId: string | null;
 }
 
 export interface EmployeeSummary {
@@ -21,6 +22,9 @@ export interface EmployeeSummary {
   department?: { id: string; name: string } | null;
   team?: { id: string; name: string } | null;
   schedule?: { id: string; name: string } | null;
+  hasPhoto: boolean;
+  leavesAvailable: number;
+  leavesTaken: number;
 }
 
 export interface EmployeeDetail extends EmployeeSummary {

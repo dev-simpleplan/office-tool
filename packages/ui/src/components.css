@@ -136,6 +136,9 @@
   font-weight: 700;
   font-size: 0.8rem;
 }
+.op-avatar--photo {
+  object-fit: cover;
+}
 
 .op-stat-card {
   display: flex;

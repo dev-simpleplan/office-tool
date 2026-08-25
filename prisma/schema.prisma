@@ -90,6 +90,10 @@ model Employee {
   team         Team?          @relation(fields: [teamId], references: [id], onDelete: SetNull)
   scheduleId   String?        @map("schedule_id") @db.Uuid
   schedule     WorkSchedule?  @relation(fields: [scheduleId], references: [id], onDelete: SetNull)
+  photoStorageKey String?     @map("photo_storage_key")
+  photoMimeType   String?     @map("photo_mime_type")
+  leavesAvailable Int         @default(0) @map("leaves_available")
+  leavesTaken     Int         @default(0) @map("leaves_taken")
   createdAt    DateTime       @default(now()) @map("created_at")
   updatedAt    DateTime       @updatedAt @map("updated_at")
 

@@ -2,6 +2,14 @@ import type { FastifyInstance } from "fastify";
 import argon2 from "argon2";
 import { CreateEmployeeSchema, UpdateEmployeeSchema, CreateAppraisalSchema } from "@office/validation";
 import { prisma } from "../lib/prisma.js";
+import { storage } from "../lib/storage.js";
+
+const ALLOWED_PHOTO_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
+const EXT_BY_TYPE: Record<string, string> = {
+  "image/jpeg": "jpg",
+  "image/png": "png",
+  "image/webp": "webp",
+};
 
 export async function employeeRoutes(app: FastifyInstance) {
   app.get("/", { preHandler: app.requirePermission("employees.view") }, async (req, reply) => {
@@ -19,12 +27,17 @@ export async function employeeRoutes(app: FastifyInstance) {
         departmentId: true,
         teamId: true,
         scheduleId: true,
+        photoStorageKey: true,
+        leavesAvailable: true,
+        leavesTaken: true,
         department: { select: { id: true, name: true } },
         team: { select: { id: true, name: true } },
         schedule: { select: { id: true, name: true } },
       },
     });
-    return reply.send({ employees });
+    return reply.send({
+      employees: employees.map(({ photoStorageKey, ...e }) => ({ ...e, hasPhoto: !!photoStorageKey })),
+    });
   });
 
   app.get("/:id", { preHandler: app.requirePermission("employees.view") }, async (req, reply) => {
@@ -43,6 +56,9 @@ export async function employeeRoutes(app: FastifyInstance) {
         departmentId: true,
         teamId: true,
         scheduleId: true,
+        photoStorageKey: true,
+        leavesAvailable: true,
+        leavesTaken: true,
         createdAt: true,
         updatedAt: true,
         department: { select: { id: true, name: true } },
@@ -54,7 +70,8 @@ export async function employeeRoutes(app: FastifyInstance) {
     if (!employee) {
       return reply.code(404).send({ error: "not_found" });
     }
-    return reply.send({ employee });
+    const { photoStorageKey, ...rest } = employee;
+    return reply.send({ employee: { ...rest, hasPhoto: !!photoStorageKey } });
   });
 
   app.post("/", { preHandler: app.requirePermission("employees.create") }, async (req, reply) => {
@@ -116,6 +133,47 @@ export async function employeeRoutes(app: FastifyInstance) {
     const { id } = req.params as { id: string };
     const employee = await prisma.employee.update({ where: { id }, data: { status: "ARCHIVED" } });
     return reply.send({ employee });
+  });
+
+  app.post("/:id/photo", { preHandler: app.requirePermission("employees.update") }, async (req, reply) => {
+    const { id } = req.params as { id: string };
+    const file = await req.file();
+    if (!file) {
+      return reply.code(400).send({ error: "no_file" });
+    }
+    if (!ALLOWED_PHOTO_TYPES.has(file.mimetype)) {
+      return reply.code(400).send({ error: "unsupported_file_type" });
+    }
+    const employee = await prisma.employee.findUnique({ where: { id }, select: { photoStorageKey: true } });
+    if (!employee) {
+      return reply.code(404).send({ error: "not_found" });
+    }
+    const buffer = await file.toBuffer();
+    const key = `employee-photos/${id}.${EXT_BY_TYPE[file.mimetype]}`;
+    await storage.put(key, buffer);
+    if (employee.photoStorageKey && employee.photoStorageKey !== key) {
+      await storage.remove(employee.photoStorageKey);
+    }
+    await prisma.employee.update({
+      where: { id },
+      data: { photoStorageKey: key, photoMimeType: file.mimetype },
+    });
+    return reply.send({ ok: true });
+  });
+
+  app.get("/:id/photo", { preHandler: app.requirePermission("employees.view") }, async (req, reply) => {
+    const { id } = req.params as { id: string };
+    const employee = await prisma.employee.findUnique({
+      where: { id },
+      select: { photoStorageKey: true, photoMimeType: true },
+    });
+    if (!employee?.photoStorageKey || !employee.photoMimeType) {
+      return reply.code(404).send({ error: "no_photo" });
+    }
+    const buffer = await storage.get(employee.photoStorageKey);
+    reply.header("Content-Type", employee.photoMimeType);
+    reply.header("Cache-Control", "private, max-age=300");
+    return reply.send(buffer);
   });
 
   app.get(

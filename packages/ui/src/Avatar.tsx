@@ -1,8 +1,12 @@
 export interface AvatarProps {
   name: string;
+  photoUrl?: string | null;
 }
 
-export function Avatar({ name }: AvatarProps) {
+export function Avatar({ name, photoUrl }: AvatarProps) {
+  if (photoUrl) {
+    return <img src={photoUrl} alt={name} className="op-avatar op-avatar--photo" />;
+  }
   const initials = name
     .split(" ")
     .map((part) => part[0])

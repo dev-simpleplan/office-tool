@@ -2,10 +2,11 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Badge, Button, Input, ConfirmDialog } from "@office/ui";
+import { Badge, Button, Input, ConfirmDialog, Avatar } from "@office/ui";
 import { UpdateEmployeeSchema, CreateAppraisalSchema, type UpdateEmployeeInput, type CreateAppraisalInput } from "@office/validation";
 import { api } from "../lib/api";
 import { useAuthStore } from "../store/authStore";
+import { useEmployeePhoto } from "../lib/useEmployeePhoto";
 import type {
   EmployeeDetail,
   DepartmentSummary,
@@ -13,7 +14,7 @@ import type {
   WorkScheduleSummary,
   AppraisalSummary,
 } from "@office/shared";
-import { useState } from "react";
+import { useRef, useState } from "react";
 
 function Field({ label, value }: { label: string; value: string }) {
   return (
@@ -38,6 +39,8 @@ export function EmployeeDetailPage() {
   const [editing, setEditing] = useState(false);
   const [confirmArchive, setConfirmArchive] = useState(false);
   const [showAppraisalForm, setShowAppraisalForm] = useState(false);
+  const [photoError, setPhotoError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ["employee", id],
@@ -107,6 +110,26 @@ export function EmployeeDetailPage() {
     },
   });
 
+  const photoUrl = useEmployeePhoto(id, data?.employee.hasPhoto ?? false);
+
+  const photoMutation = useMutation({
+    mutationFn: (file: File) => api.postFile(`/api/employees/${id}/photo`, file),
+    onSuccess: () => {
+      setPhotoError(null);
+      queryClient.invalidateQueries({ queryKey: ["employee", id] });
+      queryClient.invalidateQueries({ queryKey: ["employees"] });
+    },
+    onError: () => setPhotoError("Failed to upload photo. Use a JPEG, PNG, or WEBP under 5MB."),
+  });
+
+  function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (file) {
+      photoMutation.mutate(file);
+    }
+    e.target.value = "";
+  }
+
   if (isLoading) {
     return <p className="text-text-muted">Loading...</p>;
   }
@@ -124,6 +147,8 @@ export function EmployeeDetailPage() {
       departmentId: e.departmentId ?? "",
       teamId: e.teamId ?? "",
       scheduleId: e.scheduleId ?? "",
+      leavesAvailable: e.leavesAvailable,
+      leavesTaken: e.leavesTaken,
     });
     setEditing(true);
   }
@@ -134,7 +159,31 @@ export function EmployeeDetailPage() {
         &larr; Back to Employees
       </Link>
       <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-2xl font-bold">{e.fullName}</h1>
+        <div className="flex items-center gap-4">
+          <div className="relative">
+            <div className="h-16 w-16 [&_.op-avatar]:h-16 [&_.op-avatar]:w-16 [&_.op-avatar]:text-xl">
+              <Avatar name={e.fullName} photoUrl={photoUrl} />
+            </div>
+            {canUpdate && e.status === "ACTIVE" && (
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="absolute -bottom-1 -right-1 rounded-full border border-border bg-surface px-1.5 py-0.5 text-[10px] font-semibold text-text-muted hover:text-primary"
+                disabled={photoMutation.isPending}
+              >
+                {photoMutation.isPending ? "..." : "Edit"}
+              </button>
+            )}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              className="hidden"
+              onChange={handlePhotoChange}
+            />
+          </div>
+          <h1 className="text-2xl font-bold">{e.fullName}</h1>
+        </div>
         <div className="flex items-center gap-3">
           <Badge variant={e.status === "ACTIVE" ? "success" : "warning"}>{e.status}</Badge>
           {canUpdate && e.status === "ACTIVE" && !editing && (
@@ -149,6 +198,7 @@ export function EmployeeDetailPage() {
           )}
         </div>
       </div>
+      {photoError && <p className="mb-4 text-sm text-danger">{photoError}</p>}
 
       {editing ? (
         <form
@@ -204,6 +254,14 @@ export function EmployeeDetailPage() {
               ))}
             </select>
           </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium">Leaves Available</label>
+            <Input type="number" {...register("leavesAvailable", { valueAsNumber: true })} />
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium">Leaves Taken</label>
+            <Input type="number" {...register("leavesTaken", { valueAsNumber: true })} />
+          </div>
           <div className="sm:col-span-2 flex items-center gap-3">
             <Button type="submit" disabled={isSubmitting || updateMutation.isPending}>
               {updateMutation.isPending ? "Saving..." : "Save Changes"}
@@ -230,6 +288,15 @@ export function EmployeeDetailPage() {
             <Field label="Login Account" value={e.user?.email ?? "No login created"} />
             <Field label="Added On" value={new Date(e.createdAt).toLocaleString()} />
             <Field label="Last Updated" value={new Date(e.updatedAt).toLocaleString()} />
+          </div>
+
+          <h2 className="mb-4 mt-8 text-sm font-semibold uppercase tracking-wide text-text-muted">
+            Leave Balance
+          </h2>
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-3">
+            <Field label="Available" value={String(e.leavesAvailable)} />
+            <Field label="Taken" value={String(e.leavesTaken)} />
+            <Field label="Remaining" value={String(e.leavesAvailable - e.leavesTaken)} />
           </div>
         </div>
       )}

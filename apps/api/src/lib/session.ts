@@ -23,6 +23,7 @@ export async function getSessionUser(sessionId: string | undefined) {
       user: {
         include: {
           role: { include: { permissions: { include: { permission: true } } } },
+          employee: { select: { id: true } },
         },
       },
     },
@@ -35,6 +36,7 @@ export async function getSessionUser(sessionId: string | undefined) {
     email: session.user.email,
     roleName: session.user.role.name as RoleName,
     permissions,
+    employeeId: session.user.employee?.id ?? null,
   };
 }
 
