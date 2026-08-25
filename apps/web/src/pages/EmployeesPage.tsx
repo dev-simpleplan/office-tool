@@ -7,8 +7,10 @@ import { api } from "../lib/api";
 import { useAuthStore } from "../store/authStore";
 import type { EmployeeSummary, DepartmentSummary, TeamSummary, WorkScheduleSummary } from "@office/shared";
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 export function EmployeesPage() {
+  const navigate = useNavigate();
   const user = useAuthStore((s) => s.user);
   const canCreate = user?.permissions.includes("employees.create");
   const canViewSalary = user?.permissions.includes("salary.view");
@@ -154,7 +156,11 @@ export function EmployeesPage() {
           </thead>
           <tbody>
             {data?.employees.map((e) => (
-              <tr key={e.id}>
+              <tr
+                key={e.id}
+                onClick={() => navigate(`/employees/${e.id}`)}
+                className="cursor-pointer hover:bg-surface-hover"
+              >
                 <td>{e.fullName}</td>
                 <td>{e.jobTitle}</td>
                 <td>{e.email}</td>

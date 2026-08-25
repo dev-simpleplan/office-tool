@@ -27,6 +27,36 @@ export async function employeeRoutes(app: FastifyInstance) {
     return reply.send({ employees });
   });
 
+  app.get("/:id", { preHandler: app.requirePermission("employees.view") }, async (req, reply) => {
+    const { id } = req.params as { id: string };
+    const canViewSalary = req.user!.permissions.includes("salary.view");
+    const employee = await prisma.employee.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        fullName: true,
+        jobTitle: true,
+        email: true,
+        hireDate: true,
+        status: true,
+        salary: canViewSalary,
+        departmentId: true,
+        teamId: true,
+        scheduleId: true,
+        createdAt: true,
+        updatedAt: true,
+        department: { select: { id: true, name: true } },
+        team: { select: { id: true, name: true } },
+        schedule: { select: { id: true, name: true } },
+        user: { select: { id: true, email: true } },
+      },
+    });
+    if (!employee) {
+      return reply.code(404).send({ error: "not_found" });
+    }
+    return reply.send({ employee });
+  });
+
   app.post("/", { preHandler: app.requirePermission("employees.create") }, async (req, reply) => {
     const parsed = CreateEmployeeSchema.safeParse(req.body);
     if (!parsed.success) {

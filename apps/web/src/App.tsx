@@ -3,6 +3,7 @@ import { Layout } from "./components/Layout";
 import { LoginPage } from "./pages/LoginPage";
 import { DashboardPage } from "./pages/DashboardPage";
 import { EmployeesPage } from "./pages/EmployeesPage";
+import { EmployeeDetailPage } from "./pages/EmployeeDetailPage";
 import { DepartmentsPage } from "./pages/DepartmentsPage";
 import { TeamsPage } from "./pages/TeamsPage";
 import { SchedulesPage } from "./pages/SchedulesPage";
@@ -30,6 +31,7 @@ export default function App() {
       <Route element={<ProtectedRoutes />}>
         <Route path="/" element={<DashboardPage />} />
         <Route path="/employees" element={<EmployeesPage />} />
+        <Route path="/employees/:id" element={<EmployeeDetailPage />} />
         <Route path="/departments" element={<DepartmentsPage />} />
         <Route path="/teams" element={<TeamsPage />} />
         <Route path="/schedules" element={<SchedulesPage />} />

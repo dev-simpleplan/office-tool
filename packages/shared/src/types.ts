@@ -23,6 +23,12 @@ export interface EmployeeSummary {
   schedule?: { id: string; name: string } | null;
 }
 
+export interface EmployeeDetail extends EmployeeSummary {
+  createdAt: string;
+  updatedAt: string;
+  user?: { id: string; email: string } | null;
+}
+
 export interface DepartmentSummary {
   id: string;
   name: string;

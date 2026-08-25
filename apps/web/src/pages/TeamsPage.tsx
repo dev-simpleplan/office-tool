@@ -11,7 +11,9 @@ import { useState } from "react";
 export function TeamsPage() {
   const user = useAuthStore((s) => s.user);
   const canCreate = user?.permissions.includes("teams.create");
+  const canUpdate = user?.permissions.includes("teams.update");
   const [showForm, setShowForm] = useState(false);
+  const [editingTeam, setEditingTeam] = useState<TeamSummary | null>(null);
   const queryClient = useQueryClient();
 
   const { data, isLoading } = useQuery({
@@ -21,12 +23,12 @@ export function TeamsPage() {
   const { data: deptData } = useQuery({
     queryKey: ["departments"],
     queryFn: () => api.get<{ departments: DepartmentSummary[] }>("/api/departments"),
-    enabled: canCreate,
+    enabled: canCreate || canUpdate,
   });
   const { data: empData } = useQuery({
     queryKey: ["employees"],
     queryFn: () => api.get<{ employees: EmployeeSummary[] }>("/api/employees"),
-    enabled: canCreate,
+    enabled: canCreate || canUpdate,
   });
 
   const {
@@ -36,31 +38,67 @@ export function TeamsPage() {
     formState: { errors, isSubmitting },
   } = useForm<CreateTeamInput>({ resolver: zodResolver(CreateTeamSchema) });
 
+  function closeForm() {
+    reset({ name: "", departmentId: "", teamLeadId: "", description: "", memberIds: [] });
+    setShowForm(false);
+    setEditingTeam(null);
+  }
+
+  function openCreateForm() {
+    reset({ name: "", departmentId: "", teamLeadId: "", description: "", memberIds: [] });
+    setEditingTeam(null);
+    setShowForm(true);
+  }
+
+  function openEditForm(team: TeamSummary) {
+    reset({
+      name: team.name,
+      departmentId: team.departmentId,
+      teamLeadId: team.teamLeadId ?? "",
+      description: team.description ?? "",
+      memberIds: team.members.map((m) => m.id),
+    });
+    setEditingTeam(team);
+    setShowForm(true);
+  }
+
   const createMutation = useMutation({
     mutationFn: (input: CreateTeamInput) => api.post("/api/teams", input),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["teams"] });
-      reset();
-      setShowForm(false);
+      closeForm();
     },
   });
+
+  const updateMutation = useMutation({
+    mutationFn: (input: CreateTeamInput) => api.patch(`/api/teams/${editingTeam!.id}`, input),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["teams"] });
+      closeForm();
+    },
+  });
+
+  const activeMutation = editingTeam ? updateMutation : createMutation;
 
   return (
     <div>
       <div className="mb-6 flex items-center justify-between">
         <h1 className="text-2xl font-bold">Teams</h1>
         {canCreate && (
-          <Button onClick={() => setShowForm((s) => !s)}>
+          <Button onClick={() => (showForm ? closeForm() : openCreateForm())}>
             {showForm ? "Cancel" : "Add Team"}
           </Button>
         )}
       </div>
 
-      {showForm && canCreate && (
+      {showForm && (canCreate || canUpdate) && (
         <form
-          onSubmit={handleSubmit((data) => createMutation.mutate(data))}
+          onSubmit={handleSubmit((data) => activeMutation.mutate(data))}
           className="mb-6 grid grid-cols-1 gap-4 rounded-lg border border-border bg-surface p-6 sm:grid-cols-2"
         >
+          {editingTeam && (
+            <p className="sm:col-span-2 text-sm text-text-muted">Editing "{editingTeam.name}"</p>
+          )}
           <div>
             <label className="mb-1 block text-sm font-medium">Name</label>
             <Input {...register("name")} />
@@ -105,12 +143,17 @@ export function TeamsPage() {
               ))}
             </select>
           </div>
-          <div className="sm:col-span-2">
-            <Button type="submit" disabled={isSubmitting || createMutation.isPending}>
-              {createMutation.isPending ? "Saving..." : "Save Team"}
+          <div className="sm:col-span-2 flex items-center gap-3">
+            <Button type="submit" disabled={isSubmitting || activeMutation.isPending}>
+              {activeMutation.isPending ? "Saving..." : editingTeam ? "Update Team" : "Save Team"}
             </Button>
-            {createMutation.isError && (
-              <p className="mt-2 text-sm text-danger">Failed to create team.</p>
+            {editingTeam && (
+              <Button type="button" variant="secondary" onClick={closeForm}>
+                Cancel Edit
+              </Button>
+            )}
+            {activeMutation.isError && (
+              <p className="text-sm text-danger">Failed to save team.</p>
             )}
           </div>
         </form>
@@ -130,7 +173,11 @@ export function TeamsPage() {
           </thead>
           <tbody>
             {data?.teams.map((t) => (
-              <tr key={t.id}>
+              <tr
+                key={t.id}
+                onClick={() => canUpdate && openEditForm(t)}
+                className={canUpdate ? "cursor-pointer hover:bg-surface-hover" : undefined}
+              >
                 <td>{t.name}</td>
                 <td>{t.department?.name ?? "-"}</td>
                 <td>{t.teamLead?.fullName ?? "-"}</td>
