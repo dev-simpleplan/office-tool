@@ -1,0 +1,13 @@
+node_modules/
+dist/
+build/
+.turbo/
+*.log
+.env
+.env.local
+apps/*/node_modules/
+packages/*/node_modules/
+apps/api/src/generated/
+.DS_Store
+apps/desktop/out/
+apps/desktop/release/

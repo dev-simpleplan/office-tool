@@ -1,0 +1,6 @@
+{
+  "extends": "./packages/config/base.json",
+  "compilerOptions": {
+    "baseUrl": "."
+  }
+}

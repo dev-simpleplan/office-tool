@@ -1,0 +1,51 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-officeadmin}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-officepassword}
+      POSTGRES_DB: ${POSTGRES_DB:-office_platform}
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-officeadmin} -d ${POSTGRES_DB:-office_platform}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build:
+      context: .
+      dockerfile: infrastructure/docker/api.Dockerfile
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      SESSION_SECRET: ${SESSION_SECRET}
+      API_URL: ${API_URL}
+      WEB_URL: ${WEB_URL}
+      STORAGE_PATH: ${STORAGE_PATH:-/data/storage}
+    ports:
+      - "127.0.0.1:4000:4000"
+    profiles:
+      - prod
+
+  nginx:
+    image: nginx:1.27-alpine
+    restart: unless-stopped
+    depends_on:
+      - api
+    volumes:
+      - ./infrastructure/nginx:/etc/nginx/conf.d:ro
+    ports:
+      - "8080:80"
+    profiles:
+      - prod
+
+volumes:
+  postgres_data:
