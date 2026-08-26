@@ -7,6 +7,10 @@ import { EmployeeDetailPage } from "./pages/EmployeeDetailPage";
 import { DepartmentsPage } from "./pages/DepartmentsPage";
 import { TeamsPage } from "./pages/TeamsPage";
 import { SchedulesPage } from "./pages/SchedulesPage";
+import { ProjectsPage } from "./pages/ProjectsPage";
+import { ProjectDetailPage } from "./pages/ProjectDetailPage";
+import { TasksPage } from "./pages/TasksPage";
+import { TaskDetailPage } from "./pages/TaskDetailPage";
 import { useCurrentUser } from "./lib/useCurrentUser";
 
 function ProtectedRoutes() {
@@ -35,6 +39,10 @@ export default function App() {
         <Route path="/departments" element={<DepartmentsPage />} />
         <Route path="/teams" element={<TeamsPage />} />
         <Route path="/schedules" element={<SchedulesPage />} />
+        <Route path="/projects" element={<ProjectsPage />} />
+        <Route path="/projects/:id" element={<ProjectDetailPage />} />
+        <Route path="/tasks" element={<TasksPage />} />
+        <Route path="/tasks/:id" element={<TaskDetailPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

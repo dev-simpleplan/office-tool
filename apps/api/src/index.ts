@@ -9,6 +9,8 @@ import { employeeRoutes } from "./routes/employees.js";
 import { departmentRoutes } from "./routes/departments.js";
 import { teamRoutes } from "./routes/teams.js";
 import { scheduleRoutes } from "./routes/schedules.js";
+import { projectRoutes } from "./routes/projects.js";
+import { taskRoutes } from "./routes/tasks.js";
 
 const app = Fastify({ logger: true });
 
@@ -27,6 +29,8 @@ await app.register(employeeRoutes, { prefix: "/api/employees" });
 await app.register(departmentRoutes, { prefix: "/api/departments" });
 await app.register(teamRoutes, { prefix: "/api/teams" });
 await app.register(scheduleRoutes, { prefix: "/api/schedules" });
+await app.register(projectRoutes, { prefix: "/api/projects" });
+await app.register(taskRoutes, { prefix: "/api/tasks" });
 
 app.get("/health", async () => ({ status: "ok" }));
 

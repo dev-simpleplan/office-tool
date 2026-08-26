@@ -5,3 +5,5 @@ export * from "./department.js";
 export * from "./team.js";
 export * from "./schedule.js";
 export * from "./appraisal.js";
+export * from "./project.js";
+export * from "./task.js";

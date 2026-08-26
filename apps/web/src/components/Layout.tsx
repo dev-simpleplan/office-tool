@@ -1,5 +1,5 @@
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
-import { LayoutDashboard, Users, LogOut, Moon, Sun, Monitor, Building2, UsersRound, CalendarClock, UserCircle } from "lucide-react";
+import { LayoutDashboard, Users, LogOut, Moon, Sun, Monitor, Building2, UsersRound, CalendarClock, UserCircle, FolderKanban, ListChecks } from "lucide-react";
 import { useAuthStore } from "../store/authStore";
 import { useUiStore } from "../store/uiStore";
 import { api } from "../lib/api";
@@ -89,6 +89,31 @@ export function Layout() {
             }
           >
             <CalendarClock size={18} /> Schedules
+          </NavLink>
+        )}
+        {(user?.permissions.includes("projects.view") || user?.permissions.includes("tasks.view")) && (
+          <div className="mt-4 px-2 text-xs font-semibold uppercase tracking-wide text-text-muted">
+            Work
+          </div>
+        )}
+        {user?.permissions.includes("projects.view") && (
+          <NavLink
+            to="/projects"
+            className={({ isActive }) =>
+              `flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium ${isActive ? "bg-primary text-primary-foreground" : "text-text hover:bg-background"}`
+            }
+          >
+            <FolderKanban size={18} /> Projects
+          </NavLink>
+        )}
+        {user?.permissions.includes("tasks.view") && (
+          <NavLink
+            to="/tasks"
+            className={({ isActive }) =>
+              `flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium ${isActive ? "bg-primary text-primary-foreground" : "text-text hover:bg-background"}`
+            }
+          >
+            <ListChecks size={18} /> Tasks
           </NavLink>
         )}
       </aside>

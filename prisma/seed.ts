@@ -150,11 +150,157 @@ async function main() {
     });
   }
 
+  const caseyEmployee = await prisma.employee.findUnique({ where: { email: "casey@simpleplan.media" } });
+  let caseyUser = await prisma.user.findUnique({ where: { email: "casey@simpleplan.media" } });
+  if (!caseyUser) {
+    caseyUser = await prisma.user.create({
+      data: { email: "casey@simpleplan.media", passwordHash: password, roleId: roleRecords.EMPLOYEE! },
+    });
+  }
+  if (caseyEmployee && !caseyEmployee.userId) {
+    await prisma.employee.update({ where: { id: caseyEmployee.id }, data: { userId: caseyUser.id } });
+  }
+
+  const allEmployees = await prisma.employee.findMany();
+  const byEmail = Object.fromEntries(allEmployees.map((e) => [e.email, e]));
+  const devTeam = await prisma.team.findFirst({ where: { name: "Web Development" } });
+  const creativeTeam = await prisma.team.findFirst({ where: { name: "Creative Studio" } });
+  const marketingTeam = await prisma.team.findFirst({ where: { name: "Growth Marketing" } });
+
+  const projectDefs = [
+    {
+      name: "Acme Corp Rebrand",
+      client: "Acme Corp",
+      description: "Full brand refresh including logo, guidelines, and templates.",
+      departmentId: departments.Design,
+      teamId: creativeTeam?.id,
+      projectLeadId: designLead?.id,
+      status: "ACTIVE" as const,
+      priority: "HIGH" as const,
+      tags: ["branding", "design"],
+      budget: 45000,
+      estimatedHours: 320,
+    },
+    {
+      name: "Website Relaunch",
+      client: "Internal",
+      description: "Rebuild the marketing site on the new stack.",
+      departmentId: departments.Development,
+      teamId: devTeam?.id,
+      status: "PLANNING" as const,
+      priority: "MEDIUM" as const,
+      tags: ["web"],
+      budget: 30000,
+      estimatedHours: 400,
+    },
+    {
+      name: "Q3 Growth Campaign",
+      client: "Internal",
+      description: "Multi-channel campaign for Q3 lead generation.",
+      departmentId: departments.Marketing,
+      teamId: marketingTeam?.id,
+      status: "ACTIVE" as const,
+      priority: "URGENT" as const,
+      tags: ["campaign", "marketing"],
+      budget: 18000,
+      estimatedHours: 150,
+    },
+    {
+      name: "Client Portal MVP",
+      client: "Beta Industries",
+      description: "Standalone client-facing portal, phase 1.",
+      departmentId: departments.Development,
+      teamId: devTeam?.id,
+      status: "ON_HOLD" as const,
+      priority: "LOW" as const,
+      tags: ["web", "portal"],
+      budget: 60000,
+      estimatedHours: 500,
+    },
+  ];
+
+  const createdProjects: Record<string, string> = {};
+  for (const p of projectDefs) {
+    let project = await prisma.project.findFirst({ where: { name: p.name } });
+    if (!project) {
+      project = await prisma.project.create({ data: { ...p, createdById: admin1.id } });
+    }
+    createdProjects[p.name] = project.id;
+  }
+
+  const taskDefs = [
+    { title: "Design new logo concepts", project: "Acme Corp Rebrand", assignee: "casey@simpleplan.media", status: "IN_PROGRESS" as const, priority: "HIGH" as const },
+    { title: "Draft brand guidelines doc", project: "Acme Corp Rebrand", assignee: "teamlead@simpleplan.media", status: "NOT_STARTED" as const, priority: "MEDIUM" as const },
+    { title: "Review Acme legacy assets", project: "Acme Corp Rebrand", assignee: "casey@simpleplan.media", status: "COMPLETED" as const, priority: "LOW" as const },
+    { title: "Set up new site scaffolding", project: "Website Relaunch", assignee: "morgan@simpleplan.media", status: "IN_PROGRESS" as const, priority: "HIGH" as const },
+    { title: "Migrate blog content", project: "Website Relaunch", assignee: "morgan@simpleplan.media", status: "NOT_STARTED" as const, priority: "MEDIUM" as const },
+    { title: "Build homepage components", project: "Website Relaunch", assignee: undefined, status: "BLOCKED" as const, priority: "URGENT" as const },
+    { title: "Write Q3 campaign copy", project: "Q3 Growth Campaign", assignee: "morgan@simpleplan.media", status: "IN_PROGRESS" as const, priority: "HIGH" as const },
+    { title: "Produce campaign video", project: "Q3 Growth Campaign", assignee: "riley@simpleplan.media", status: "NOT_STARTED" as const, priority: "URGENT" as const },
+    { title: "Set up ad tracking", project: "Q3 Growth Campaign", assignee: undefined, status: "NOT_STARTED" as const, priority: "MEDIUM" as const },
+    { title: "Wireframe portal dashboard", project: "Client Portal MVP", assignee: "casey@simpleplan.media", status: "CANCELLED" as const, priority: "LOW" as const },
+    { title: "Spec out auth flow", project: "Client Portal MVP", assignee: "teamlead@simpleplan.media", status: "NOT_STARTED" as const, priority: "MEDIUM" as const },
+    { title: "Weekly internal sync notes", project: undefined, assignee: "casey@simpleplan.media", status: "IN_PROGRESS" as const, priority: "LOW" as const },
+  ];
+
+  const createdTasks: Record<string, string> = {};
+  for (const t of taskDefs) {
+    let task = await prisma.task.findFirst({ where: { title: t.title } });
+    if (!task) {
+      task = await prisma.task.create({
+        data: {
+          title: t.title,
+          projectId: t.project ? createdProjects[t.project] : undefined,
+          assigneeId: t.assignee ? byEmail[t.assignee]?.id : undefined,
+          status: t.status,
+          priority: t.priority,
+          createdById: admin1.id,
+          completionDate: t.status === "COMPLETED" ? new Date() : undefined,
+        },
+      });
+    }
+    createdTasks[t.title] = task.id;
+  }
+
+  const firstTaskId = createdTasks["Design new logo concepts"];
+  if (firstTaskId) {
+    const existingItems = await prisma.taskChecklistItem.count({ where: { taskId: firstTaskId } });
+    if (existingItems === 0) {
+      await prisma.taskChecklistItem.createMany({
+        data: [
+          { taskId: firstTaskId, label: "Sketch 5 rough concepts", isDone: true, order: 0 },
+          { taskId: firstTaskId, label: "Get feedback from team lead", isDone: true, order: 1 },
+          { taskId: firstTaskId, label: "Refine top 2 concepts", isDone: false, order: 2 },
+          { taskId: firstTaskId, label: "Present to client", isDone: false, order: 3 },
+        ],
+      });
+    }
+    const existingEntries = await prisma.timeEntry.count({ where: { taskId: firstTaskId } });
+    if (existingEntries === 0 && caseyEmployee) {
+      await prisma.timeEntry.createMany({
+        data: [
+          { taskId: firstTaskId, employeeId: caseyEmployee.id, date: new Date("2026-08-18"), hours: 3.5, description: "Initial sketches" },
+          { taskId: firstTaskId, employeeId: caseyEmployee.id, date: new Date("2026-08-19"), hours: 2, description: "Refinement pass" },
+        ],
+      });
+    }
+    const existingComments = await prisma.taskComment.count({ where: { taskId: firstTaskId } });
+    if (existingComments === 0) {
+      await prisma.taskComment.createMany({
+        data: [
+          { taskId: firstTaskId, authorId: teamLead.id, content: "Looking good, focus concepts 2 and 4." },
+          { taskId: firstTaskId, authorId: caseyUser.id, content: "Will refine those two by Friday." },
+        ],
+      });
+    }
+  }
+
   console.log("Seed complete.");
   console.log("Demo credentials (password: Password123!):");
   console.log("  admin1@simpleplan.media (ADMIN)");
   console.log("  admin2@simpleplan.media (ADMIN)");
   console.log("  teamlead@simpleplan.media (TEAM_LEAD)");
+  console.log("  casey@simpleplan.media (EMPLOYEE)");
 }
 
 main()
