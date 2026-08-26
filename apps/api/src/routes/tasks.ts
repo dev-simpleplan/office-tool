@@ -36,12 +36,17 @@ export async function taskRoutes(app: FastifyInstance) {
       priority?: Priority;
       assigneeId?: string;
     };
+    // Spec draws a hard line between ADMIN "view all tasks" and EMPLOYEE
+    // "view their tasks" (sections 12/14) — TEAM_LEAD gets the same
+    // company-wide view as ADMIN for now, matching the Projects decision.
+    const isScopedToOwnTasks = req.user!.roleName === "EMPLOYEE";
     const tasks = await prisma.task.findMany({
       where: {
         ...(q.projectId ? { projectId: q.projectId } : {}),
         ...(q.status ? { status: q.status } : {}),
         ...(q.priority ? { priority: q.priority } : {}),
         ...(q.assigneeId ? { assigneeId: q.assigneeId } : {}),
+        ...(isScopedToOwnTasks ? { assigneeId: req.user!.employeeId ?? "__none__" } : {}),
       },
       include: taskInclude,
       orderBy: { createdAt: "desc" },
@@ -61,6 +66,9 @@ export async function taskRoutes(app: FastifyInstance) {
       },
     });
     if (!task) return reply.code(404).send({ error: "not_found" });
+    if (req.user!.roleName === "EMPLOYEE" && task.assigneeId !== req.user!.employeeId) {
+      return reply.code(403).send({ error: "forbidden", reason: "not_your_task" });
+    }
     const serialized = serializeTask(task);
     return reply.send({
       task: {
