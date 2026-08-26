@@ -22,6 +22,7 @@ export async function employeeRoutes(app: FastifyInstance) {
         jobTitle: true,
         email: true,
         hireDate: true,
+        dateOfBirth: true,
         status: true,
         salary: canViewSalary,
         departmentId: true,
@@ -51,6 +52,7 @@ export async function employeeRoutes(app: FastifyInstance) {
         jobTitle: true,
         email: true,
         hireDate: true,
+        dateOfBirth: true,
         status: true,
         salary: canViewSalary,
         departmentId: true,
@@ -108,6 +110,7 @@ export async function employeeRoutes(app: FastifyInstance) {
         jobTitle: data.jobTitle,
         email: data.email,
         hireDate: new Date(data.hireDate),
+        dateOfBirth: data.dateOfBirth ? new Date(data.dateOfBirth) : undefined,
         salary: data.salary,
         userId,
         departmentId: data.departmentId,
@@ -125,7 +128,14 @@ export async function employeeRoutes(app: FastifyInstance) {
     if (!parsed.success) {
       return reply.code(400).send({ error: "invalid_input", issues: parsed.error.issues });
     }
-    const employee = await prisma.employee.update({ where: { id }, data: parsed.data });
+    const { dateOfBirth, ...rest } = parsed.data;
+    const employee = await prisma.employee.update({
+      where: { id },
+      data: {
+        ...rest,
+        ...(dateOfBirth !== undefined ? { dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : null } : {}),
+      },
+    });
     return reply.send({ employee });
   });
 

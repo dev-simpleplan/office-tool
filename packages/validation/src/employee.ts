@@ -6,6 +6,7 @@ export const CreateEmployeeSchema = z.object({
   jobTitle: z.string().min(1).max(200),
   email: z.string().email(),
   hireDate: z.string().datetime().or(z.string().min(1)),
+  dateOfBirth: z.string().datetime().or(z.string().length(0)).or(z.string().min(1)).optional(),
   salary: z.number().positive().optional(),
   createLogin: z.boolean().optional().default(false),
   password: z.string().min(8).optional(),
@@ -18,6 +19,7 @@ export type CreateEmployeeInput = z.infer<typeof CreateEmployeeSchema>;
 export const UpdateEmployeeSchema = z.object({
   fullName: z.string().min(1).max(200).optional(),
   jobTitle: z.string().min(1).max(200).optional(),
+  dateOfBirth: z.string().datetime().or(z.string().length(0)).or(z.string().min(1)).optional(),
   salary: z.number().positive().optional(),
   departmentId: optionalUuid(),
   teamId: optionalUuid(),

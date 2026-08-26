@@ -15,6 +15,7 @@ export interface EmployeeSummary {
   email: string;
   status: "ACTIVE" | "ARCHIVED";
   hireDate: string;
+  dateOfBirth?: string | null;
   salary?: number | null;
   departmentId?: string | null;
   teamId?: string | null;
@@ -181,3 +182,76 @@ export interface AppraisalSummary {
   createdBy?: { id: string; email: string } | null;
   createdAt: string;
 }
+
+export interface WorkloadResult {
+  employeeId: string;
+  capacityHours: number | null;
+  assignedHours: number;
+  utilization: number | null;
+  hasSchedule: boolean;
+}
+
+export interface UpcomingDateEntry {
+  employeeId: string;
+  fullName: string;
+  date: string;
+  nextOccurrence: string;
+}
+
+export interface CalendarEvent {
+  id: string;
+  type: "TASK_DUE" | "PROJECT_START" | "PROJECT_END";
+  title: string;
+  date: string;
+  status?: string;
+  refId: string;
+}
+
+export interface DashboardTaskItem {
+  id: string;
+  title: string;
+  status: TaskStatus;
+  priority: Priority;
+  dueDate?: string | null;
+  project?: { id: string; name: string } | null;
+}
+
+export interface AdminDashboardData {
+  role: "ADMIN";
+  employeeCount: number;
+  activeEmployeeCount: number;
+  departmentCount: number;
+  teamCount: number;
+  activeProjectCount: number;
+  taskCount: number;
+  completionRate: number;
+  overdueTaskCount: number;
+  upcomingBirthdays: UpcomingDateEntry[];
+  upcomingAnniversaries: UpcomingDateEntry[];
+  companyWorkload: { totalCapacity: number; totalAssigned: number; employeesWithSchedule: number; employeesWithoutSchedule: number };
+}
+
+export interface TeamLeadDashboardData {
+  role: "TEAM_LEAD";
+  teamId: string | null;
+  teamName: string | null;
+  memberCount: number;
+  todaysTasks: DashboardTaskItem[];
+  overdueTasks: DashboardTaskItem[];
+  blockedTasks: DashboardTaskItem[];
+  teamProjects: { id: string; name: string; status: ProjectStatus }[];
+  teamHoursThisWeek: number;
+  teamWorkload: (WorkloadResult & { fullName: string })[];
+}
+
+export interface EmployeeDashboardData {
+  role: "EMPLOYEE";
+  todaysTasks: DashboardTaskItem[];
+  overdueTasks: DashboardTaskItem[];
+  completedTaskCount: number;
+  hoursLoggedThisWeek: number;
+  weeklyProgress: { completed: number; total: number };
+  upcomingDeadlines: DashboardTaskItem[];
+}
+
+export type DashboardData = AdminDashboardData | TeamLeadDashboardData | EmployeeDashboardData;

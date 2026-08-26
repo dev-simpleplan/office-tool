@@ -52,12 +52,13 @@ async function main() {
 
   await prisma.employee.upsert({
     where: { email: "admin1@simpleplan.media" },
-    update: {},
+    update: { dateOfBirth: new Date("1988-09-05") },
     create: {
       fullName: "Alex Admin",
       jobTitle: "Operations Director",
       email: "admin1@simpleplan.media",
       hireDate: new Date("2021-01-15"),
+      dateOfBirth: new Date("1988-09-05"),
       salary: 125000,
       userId: admin1.id,
     },
@@ -76,24 +77,25 @@ async function main() {
   });
   await prisma.employee.upsert({
     where: { email: "teamlead@simpleplan.media" },
-    update: {},
+    update: { dateOfBirth: new Date("1990-09-10") },
     create: {
       fullName: "Taylor Lead",
       jobTitle: "Design Team Lead",
       email: "teamlead@simpleplan.media",
       hireDate: new Date("2022-06-10"),
+      dateOfBirth: new Date("1990-09-10"),
       salary: 95000,
       userId: teamLead.id,
     },
   });
 
   const extras = [
-    { fullName: "Casey Creative", jobTitle: "Graphic Designer", email: "casey@simpleplan.media", hireDate: new Date("2022-09-01"), salary: 72000 },
+    { fullName: "Casey Creative", jobTitle: "Graphic Designer", email: "casey@simpleplan.media", hireDate: new Date("2022-09-01"), dateOfBirth: new Date("1995-09-01"), salary: 72000 },
     { fullName: "Morgan Writer", jobTitle: "Copywriter", email: "morgan@simpleplan.media", hireDate: new Date("2023-02-15"), salary: 68000 },
     { fullName: "Riley Video", jobTitle: "Video Editor", email: "riley@simpleplan.media", hireDate: new Date("2023-07-20"), salary: 74000 },
   ];
   for (const e of extras) {
-    await prisma.employee.upsert({ where: { email: e.email }, update: {}, create: e });
+    await prisma.employee.upsert({ where: { email: e.email }, update: { dateOfBirth: e.dateOfBirth ?? null }, create: e });
   }
 
   const departmentNames = ["Development", "Design", "Marketing", "Sales", "HR"];
@@ -148,6 +150,30 @@ async function main() {
         breakMinutes: isWorkingDay ? 60 : 0,
       },
     });
+  }
+
+  const creativeTeamForSchedule = await prisma.team.findFirst({ where: { name: "Creative Studio" } });
+  // Everyone except Riley gets the Standard Office schedule + Design dept/team,
+  // so the dashboard/workload demo has both a "known capacity" and an
+  // "unknown capacity" (no schedule) employee to show off both UI states.
+  const scheduleAssignments: Array<{ email: string; teamId?: string }> = [
+    { email: "admin1@simpleplan.media" },
+    { email: "admin2@simpleplan.media" },
+    { email: "teamlead@simpleplan.media", teamId: creativeTeamForSchedule?.id },
+    { email: "casey@simpleplan.media", teamId: creativeTeamForSchedule?.id },
+    { email: "morgan@simpleplan.media" },
+  ];
+  for (const a of scheduleAssignments) {
+    const emp = await prisma.employee.findUnique({ where: { email: a.email } });
+    if (emp && !emp.scheduleId) {
+      await prisma.employee.update({
+        where: { id: emp.id },
+        data: {
+          scheduleId: standardSchedule.id,
+          ...(a.teamId && !emp.teamId ? { teamId: a.teamId, departmentId: departments.Design } : {}),
+        },
+      });
+    }
   }
 
   const caseyEmployee = await prisma.employee.findUnique({ where: { email: "casey@simpleplan.media" } });
@@ -228,19 +254,22 @@ async function main() {
     createdProjects[p.name] = project.id;
   }
 
+  const today = new Date();
+  const inDays = (n: number) => new Date(today.getFullYear(), today.getMonth(), today.getDate() + n);
   const taskDefs = [
-    { title: "Design new logo concepts", project: "Acme Corp Rebrand", assignee: "casey@simpleplan.media", status: "IN_PROGRESS" as const, priority: "HIGH" as const },
-    { title: "Draft brand guidelines doc", project: "Acme Corp Rebrand", assignee: "teamlead@simpleplan.media", status: "NOT_STARTED" as const, priority: "MEDIUM" as const },
-    { title: "Review Acme legacy assets", project: "Acme Corp Rebrand", assignee: "casey@simpleplan.media", status: "COMPLETED" as const, priority: "LOW" as const },
-    { title: "Set up new site scaffolding", project: "Website Relaunch", assignee: "morgan@simpleplan.media", status: "IN_PROGRESS" as const, priority: "HIGH" as const },
-    { title: "Migrate blog content", project: "Website Relaunch", assignee: "morgan@simpleplan.media", status: "NOT_STARTED" as const, priority: "MEDIUM" as const },
-    { title: "Build homepage components", project: "Website Relaunch", assignee: undefined, status: "BLOCKED" as const, priority: "URGENT" as const },
-    { title: "Write Q3 campaign copy", project: "Q3 Growth Campaign", assignee: "morgan@simpleplan.media", status: "IN_PROGRESS" as const, priority: "HIGH" as const },
-    { title: "Produce campaign video", project: "Q3 Growth Campaign", assignee: "riley@simpleplan.media", status: "NOT_STARTED" as const, priority: "URGENT" as const },
-    { title: "Set up ad tracking", project: "Q3 Growth Campaign", assignee: undefined, status: "NOT_STARTED" as const, priority: "MEDIUM" as const },
-    { title: "Wireframe portal dashboard", project: "Client Portal MVP", assignee: "casey@simpleplan.media", status: "CANCELLED" as const, priority: "LOW" as const },
-    { title: "Spec out auth flow", project: "Client Portal MVP", assignee: "teamlead@simpleplan.media", status: "NOT_STARTED" as const, priority: "MEDIUM" as const },
-    { title: "Weekly internal sync notes", project: undefined, assignee: "casey@simpleplan.media", status: "IN_PROGRESS" as const, priority: "LOW" as const },
+    { title: "Design new logo concepts", project: "Acme Corp Rebrand", assignee: "casey@simpleplan.media", status: "IN_PROGRESS" as const, priority: "HIGH" as const, dueDate: inDays(2), estimatedHours: 12 },
+    { title: "Draft brand guidelines doc", project: "Acme Corp Rebrand", assignee: "teamlead@simpleplan.media", status: "NOT_STARTED" as const, priority: "MEDIUM" as const, dueDate: inDays(5), estimatedHours: 8 },
+    { title: "Review Acme legacy assets", project: "Acme Corp Rebrand", assignee: "casey@simpleplan.media", status: "COMPLETED" as const, priority: "LOW" as const, dueDate: inDays(-3), estimatedHours: 4 },
+    { title: "Set up new site scaffolding", project: "Website Relaunch", assignee: "morgan@simpleplan.media", status: "IN_PROGRESS" as const, priority: "HIGH" as const, dueDate: inDays(0), estimatedHours: 16 },
+    { title: "Migrate blog content", project: "Website Relaunch", assignee: "morgan@simpleplan.media", status: "NOT_STARTED" as const, priority: "MEDIUM" as const, dueDate: inDays(4), estimatedHours: 10 },
+    { title: "Build homepage components", project: "Website Relaunch", assignee: undefined, status: "BLOCKED" as const, priority: "URGENT" as const, dueDate: inDays(6), estimatedHours: 20 },
+    { title: "Write Q3 campaign copy", project: "Q3 Growth Campaign", assignee: "morgan@simpleplan.media", status: "IN_PROGRESS" as const, priority: "HIGH" as const, dueDate: inDays(1), estimatedHours: 6 },
+    { title: "Produce campaign video", project: "Q3 Growth Campaign", assignee: "riley@simpleplan.media", status: "NOT_STARTED" as const, priority: "URGENT" as const, dueDate: inDays(3), estimatedHours: 24 },
+    { title: "Set up ad tracking", project: "Q3 Growth Campaign", assignee: undefined, status: "NOT_STARTED" as const, priority: "MEDIUM" as const, dueDate: inDays(7), estimatedHours: 5 },
+    { title: "Wireframe portal dashboard", project: "Client Portal MVP", assignee: "casey@simpleplan.media", status: "CANCELLED" as const, priority: "LOW" as const, dueDate: inDays(-10), estimatedHours: 8 },
+    { title: "Spec out auth flow", project: "Client Portal MVP", assignee: "teamlead@simpleplan.media", status: "NOT_STARTED" as const, priority: "MEDIUM" as const, dueDate: inDays(8), estimatedHours: 10 },
+    { title: "Weekly internal sync notes", project: undefined, assignee: "casey@simpleplan.media", status: "IN_PROGRESS" as const, priority: "LOW" as const, dueDate: inDays(-1), estimatedHours: 2 },
+    { title: "Overdue: fix Acme color proofs", project: "Acme Corp Rebrand", assignee: "casey@simpleplan.media", status: "IN_PROGRESS" as const, priority: "HIGH" as const, dueDate: inDays(-2), estimatedHours: 3 },
   ];
 
   const createdTasks: Record<string, string> = {};
@@ -254,9 +283,16 @@ async function main() {
           assigneeId: t.assignee ? byEmail[t.assignee]?.id : undefined,
           status: t.status,
           priority: t.priority,
+          dueDate: t.dueDate,
+          estimatedHours: t.estimatedHours,
           createdById: admin1.id,
           completionDate: t.status === "COMPLETED" ? new Date() : undefined,
         },
+      });
+    } else if (task.dueDate === null) {
+      task = await prisma.task.update({
+        where: { id: task.id },
+        data: { dueDate: t.dueDate, estimatedHours: t.estimatedHours },
       });
     }
     createdTasks[t.title] = task.id;

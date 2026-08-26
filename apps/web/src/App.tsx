@@ -11,6 +11,8 @@ import { ProjectsPage } from "./pages/ProjectsPage";
 import { ProjectDetailPage } from "./pages/ProjectDetailPage";
 import { TasksPage } from "./pages/TasksPage";
 import { TaskDetailPage } from "./pages/TaskDetailPage";
+import { CalendarPage } from "./pages/CalendarPage";
+import { TeamWorkloadPage } from "./pages/TeamWorkloadPage";
 import { useCurrentUser } from "./lib/useCurrentUser";
 
 function ProtectedRoutes() {
@@ -43,6 +45,8 @@ export default function App() {
         <Route path="/projects/:id" element={<ProjectDetailPage />} />
         <Route path="/tasks" element={<TasksPage />} />
         <Route path="/tasks/:id" element={<TaskDetailPage />} />
+        <Route path="/calendar" element={<CalendarPage />} />
+        <Route path="/team/workload" element={<TeamWorkloadPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

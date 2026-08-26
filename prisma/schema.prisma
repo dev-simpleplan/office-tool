@@ -83,6 +83,7 @@ model Employee {
   jobTitle     String         @map("job_title")
   email        String         @unique
   hireDate     DateTime       @map("hire_date")
+  dateOfBirth  DateTime?      @map("date_of_birth")
   salary       Decimal?       @db.Decimal(12, 2)
   status       EmployeeStatus @default(ACTIVE)
   userId       String?        @unique @map("user_id") @db.Uuid

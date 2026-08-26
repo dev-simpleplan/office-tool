@@ -1,5 +1,5 @@
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
-import { LayoutDashboard, Users, LogOut, Moon, Sun, Monitor, Building2, UsersRound, CalendarClock, UserCircle, FolderKanban, ListChecks } from "lucide-react";
+import { LayoutDashboard, Users, LogOut, Moon, Sun, Monitor, Building2, UsersRound, CalendarClock, UserCircle, FolderKanban, ListChecks, CalendarDays, Gauge } from "lucide-react";
 import { useAuthStore } from "../store/authStore";
 import { useUiStore } from "../store/uiStore";
 import { api } from "../lib/api";
@@ -33,6 +33,24 @@ export function Layout() {
         >
           <LayoutDashboard size={18} /> Dashboard
         </NavLink>
+        <NavLink
+          to="/calendar"
+          className={({ isActive }) =>
+            `flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium ${isActive ? "bg-primary text-primary-foreground" : "text-text hover:bg-background"}`
+          }
+        >
+          <CalendarDays size={18} /> Calendar
+        </NavLink>
+        {user?.roleName === "TEAM_LEAD" && (
+          <NavLink
+            to="/team/workload"
+            className={({ isActive }) =>
+              `flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium ${isActive ? "bg-primary text-primary-foreground" : "text-text hover:bg-background"}`
+            }
+          >
+            <Gauge size={18} /> Team Workload
+          </NavLink>
+        )}
         {user?.employeeId && (
           <NavLink
             to={`/employees/${user.employeeId}`}
