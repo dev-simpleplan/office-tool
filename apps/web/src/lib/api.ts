@@ -1,4 +1,9 @@
-const API_URL = import.meta.env.VITE_API_URL as string;
+// The Electron shell exposes a runtime-configurable API URL (read from a
+// config file next to the packaged app, not baked in at build time like
+// VITE_API_URL) via preload.ts — prefer it when running inside Electron.
+const API_URL =
+  (window as { officeDesktop?: { apiUrl?: string } }).officeDesktop?.apiUrl ??
+  (import.meta.env.VITE_API_URL as string);
 
 export class ApiError extends Error {
   status: number;

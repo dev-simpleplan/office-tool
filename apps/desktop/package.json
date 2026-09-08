@@ -7,12 +7,56 @@
   "scripts": {
     "dev": "tsc -p tsconfig.json && electron dist/main.js",
     "build": "tsc -p tsconfig.json",
+    "prepackage": "cd ../.. && npm run build --workspace=apps/web && cd apps/desktop && rm -rf renderer && cp -R ../web/dist renderer",
+    "package": "npm run build && npm run prepackage && electron-builder",
+    "package:mac": "npm run build && npm run prepackage && electron-builder --mac",
     "typecheck": "tsc --noEmit",
     "lint": "eslint src --ext .ts"
   },
+  "author": "SimplePlan Media",
+  "description": "SimplePlan Office Management Platform desktop shell",
+  "build": {
+    "appId": "media.simpleplan.officetool",
+    "productName": "SimplePlan Office Tool",
+    "electronVersion": "32.3.3",
+    "files": [
+      "dist/**/*",
+      "renderer/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "config.json",
+        "to": "config.json"
+      }
+    ],
+    "mac": {
+      "category": "public.app-category.business",
+      "target": [
+        "dmg",
+        "zip"
+      ]
+    },
+    "win": {
+      "target": [
+        "nsis"
+      ]
+    },
+    "linux": {
+      "target": [
+        "AppImage"
+      ]
+    },
+    "directories": {
+      "output": "release"
+    }
+  },
   "devDependencies": {
+    "@types/node": "^20.16.10",
     "electron": "^32.1.2",
-    "typescript": "^5.6.3",
-    "@types/node": "^20.16.10"
+    "electron-builder": "^25.1.8",
+    "typescript": "^5.6.3"
+  },
+  "dependencies": {
+    "app-builder-bin": "^4.2.0"
   }
 }
