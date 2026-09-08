@@ -1,9 +1,14 @@
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
 import { Badge } from "@office/ui";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { api } from "../lib/api";
 import type { CalendarEvent } from "@office/shared";
+
+function eventPath(e: CalendarEvent): string {
+  return e.type === "TASK_DUE" ? `/tasks/${e.refId}` : `/projects/${e.refId}`;
+}
 
 type ViewMode = "day" | "week" | "month";
 
@@ -53,15 +58,21 @@ function eventBadgeVariant(e: CalendarEvent) {
 }
 
 function DayCell({ date, events, muted }: { date: Date; events: CalendarEvent[]; muted?: boolean }) {
+  const navigate = useNavigate();
   const isToday = new Date().toDateString() === date.toDateString();
   return (
     <div className={`min-h-[100px] rounded-md border border-border p-2 ${muted ? "opacity-40" : ""} ${isToday ? "ring-1 ring-primary" : ""}`}>
       <div className="mb-1 text-xs font-medium text-text-muted">{date.getDate()}</div>
       <div className="space-y-1">
         {events.map((e) => (
-          <div key={e.id} className="truncate">
+          <button
+            key={e.id}
+            type="button"
+            onClick={() => navigate(eventPath(e))}
+            className="block w-full truncate text-left"
+          >
             <Badge variant={eventBadgeVariant(e)}>{e.title}</Badge>
-          </div>
+          </button>
         ))}
       </div>
     </div>
