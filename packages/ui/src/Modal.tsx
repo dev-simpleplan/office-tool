@@ -13,7 +13,13 @@ export function Modal({ open, onClose, title, children }: ModalProps) {
   useEffect(() => {
     if (!open) return;
     const previouslyFocused = document.activeElement as HTMLElement | null;
-    panelRef.current?.focus();
+    // Prefer an element that already wants focus (e.g. a search input with
+    // autoFocus) over the panel itself — grabbing the panel unconditionally
+    // would steal focus away from it a tick after mount.
+    const firstFocusable = panelRef.current?.querySelector<HTMLElement>(
+      'a[href], button:not([disabled]), textarea, input, select, [tabindex]:not([tabindex="-1"])'
+    );
+    (firstFocusable ?? panelRef.current)?.focus();
 
     function onKeyDown(e: KeyboardEvent) {
       if (e.key === "Escape") {
