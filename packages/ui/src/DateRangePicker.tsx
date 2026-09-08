@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { DatePicker } from "./DatePicker";
 
 export interface DateRange {
   start: string; // ISO date (yyyy-mm-dd)
@@ -99,20 +100,16 @@ export function DateRangePicker({ value, preset, onChange }: DateRangePickerProp
       </div>
       {customOpen && (
         <div className="op-date-range-picker__custom">
-          <input
-            type="date"
-            className="op-input"
+          <DatePicker
             value={value.start}
             max={value.end}
-            onChange={(e) => onChange({ ...value, start: e.target.value }, "custom")}
+            onChange={(start) => onChange({ ...value, start }, "custom")}
           />
           <span className="text-text-muted">to</span>
-          <input
-            type="date"
-            className="op-input"
+          <DatePicker
             value={value.end}
             min={value.start}
-            onChange={(e) => onChange({ ...value, end: e.target.value }, "custom")}
+            onChange={(end) => onChange({ ...value, end }, "custom")}
           />
         </div>
       )}

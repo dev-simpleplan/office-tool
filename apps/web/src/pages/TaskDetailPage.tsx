@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useParams, useNavigate } from "react-router-dom";
-import { Badge, Button, Input } from "@office/ui";
+import { Badge, Button, Input, DatePicker } from "@office/ui";
 import { api } from "../lib/api";
 import { useAuthStore } from "../store/authStore";
 import type { TaskDetail } from "@office/shared";
@@ -159,7 +159,7 @@ export function TaskDetailPage() {
           <div className="flex flex-wrap items-end gap-2">
             <div>
               <label className="mb-1 block text-xs text-text-muted">Date</label>
-              <Input type="date" value={timeEntryDate} onChange={(e) => setTimeEntryDate(e.target.value)} />
+              <DatePicker value={timeEntryDate} onChange={setTimeEntryDate} />
             </div>
             <div>
               <label className="mb-1 block text-xs text-text-muted">Hours</label>

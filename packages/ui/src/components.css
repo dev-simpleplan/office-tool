@@ -195,3 +195,108 @@
 .op-date-range-picker__custom .op-input {
   width: auto;
 }
+
+.op-datepicker {
+  position: relative;
+  display: inline-block;
+  width: 100%;
+}
+.op-datepicker__trigger {
+  text-align: left;
+  cursor: pointer;
+}
+.op-datepicker__placeholder {
+  color: var(--color-text-muted);
+}
+.op-datepicker__popover {
+  position: absolute;
+  z-index: 30;
+  top: calc(100% + 0.35rem);
+  left: 0;
+  width: 17.5rem;
+  padding: 0.75rem;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+}
+.op-datepicker__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
+}
+.op-datepicker__month-label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--color-text);
+}
+.op-datepicker__nav {
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text);
+  cursor: pointer;
+  font-size: 1rem;
+  line-height: 1;
+}
+.op-datepicker__nav:hover {
+  background: var(--color-surface-hover);
+}
+.op-datepicker__weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  margin-bottom: 0.25rem;
+}
+.op-datepicker__weekdays span {
+  text-align: center;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+.op-datepicker__grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 0.15rem;
+}
+.op-datepicker__day {
+  aspect-ratio: 1;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-text);
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+.op-datepicker__day:hover:not(:disabled) {
+  background: var(--color-surface-hover);
+}
+.op-datepicker__day:disabled {
+  color: var(--color-text-muted);
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.op-datepicker__day--today {
+  border: 1px solid var(--color-primary);
+}
+.op-datepicker__day--selected {
+  background: var(--color-primary);
+  color: var(--color-primary-foreground);
+}
+.op-datepicker__clear {
+  margin-top: 0.5rem;
+  width: 100%;
+  padding: 0.35rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--color-text-muted);
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+.op-datepicker__clear:hover {
+  color: var(--color-danger);
+  border-color: var(--color-danger);
+}

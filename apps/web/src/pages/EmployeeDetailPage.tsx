@@ -1,8 +1,8 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { useForm } from "react-hook-form";
+import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Badge, Button, Input, ConfirmDialog, Avatar } from "@office/ui";
+import { Badge, Button, Input, ConfirmDialog, Avatar, DatePicker } from "@office/ui";
 import {
   UpdateEmployeeSchema,
   CreateAppraisalSchema,
@@ -86,6 +86,7 @@ export function EmployeeDetailPage() {
     register: registerAppraisal,
     handleSubmit: handleSubmitAppraisal,
     reset: resetAppraisal,
+    control: appraisalControl,
     formState: { errors: appraisalErrors, isSubmitting: isSubmittingAppraisal },
   } = useForm<CreateAppraisalInput>({ resolver: zodResolver(CreateAppraisalSchema) });
 
@@ -388,7 +389,11 @@ export function EmployeeDetailPage() {
               )}
               <div>
                 <label className="mb-1 block text-sm font-medium">Appraisal Date</label>
-                <Input type="date" {...registerAppraisal("appraisalDate")} />
+                <Controller
+                  name="appraisalDate"
+                  control={appraisalControl}
+                  render={({ field }) => <DatePicker value={field.value ?? ""} onChange={field.onChange} />}
+                />
                 {appraisalErrors.appraisalDate && (
                   <p className="mt-1 text-xs text-danger">{appraisalErrors.appraisalDate.message}</p>
                 )}

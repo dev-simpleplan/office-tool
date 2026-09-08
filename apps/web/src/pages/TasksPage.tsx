@@ -1,8 +1,8 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useForm } from "react-hook-form";
+import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { CreateTaskSchema, TASK_STATUSES, TASK_PRIORITIES, type CreateTaskInput } from "@office/validation";
-import { Button, Input, Table, Badge } from "@office/ui";
+import { Button, Input, Table, Badge, DatePicker } from "@office/ui";
 import { api } from "../lib/api";
 import { useAuthStore } from "../store/authStore";
 import type { TaskSummary, ProjectSummary, EmployeeSummary } from "@office/shared";
@@ -35,6 +35,7 @@ export function TasksPage() {
     register,
     handleSubmit,
     reset,
+    control,
     formState: { errors, isSubmitting },
   } = useForm<CreateTaskInput>({ resolver: zodResolver(CreateTaskSchema) });
 
@@ -143,7 +144,11 @@ export function TasksPage() {
           </div>
           <div>
             <label className="mb-1 block text-sm font-medium">Due Date</label>
-            <Input type="date" {...register("dueDate")} />
+            <Controller
+              name="dueDate"
+              control={control}
+              render={({ field }) => <DatePicker value={field.value ?? ""} onChange={field.onChange} />}
+            />
           </div>
           <div>
             <label className="mb-1 block text-sm font-medium">Estimated Hours</label>

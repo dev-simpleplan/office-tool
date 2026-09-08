@@ -1,8 +1,8 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useForm } from "react-hook-form";
+import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { CreateEmployeeSchema, type CreateEmployeeInput } from "@office/validation";
-import { Button, Input, Table, Badge } from "@office/ui";
+import { Button, Input, Table, Badge, DatePicker } from "@office/ui";
 import { api } from "../lib/api";
 import { useAuthStore } from "../store/authStore";
 import type { EmployeeSummary, DepartmentSummary, TeamSummary, WorkScheduleSummary } from "@office/shared";
@@ -41,6 +41,7 @@ export function EmployeesPage() {
     register,
     handleSubmit,
     reset,
+    control,
     formState: { errors, isSubmitting },
   } = useForm<CreateEmployeeInput>({ resolver: zodResolver(CreateEmployeeSchema) });
 
@@ -86,7 +87,11 @@ export function EmployeesPage() {
           </div>
           <div>
             <label className="mb-1 block text-sm font-medium">Hire Date</label>
-            <Input type="date" {...register("hireDate")} />
+            <Controller
+              name="hireDate"
+              control={control}
+              render={({ field }) => <DatePicker value={field.value ?? ""} onChange={field.onChange} />}
+            />
             {errors.hireDate && <p className="mt-1 text-xs text-danger">{errors.hireDate.message}</p>}
           </div>
           {canViewSalary && (
