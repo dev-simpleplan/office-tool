@@ -10,6 +10,23 @@ import {
 } from "@office/validation";
 import { prisma } from "../lib/prisma.js";
 import { Prisma, TaskStatus, Priority } from "../generated/prisma/index.js";
+import { notify, logActivity } from "../lib/notify.js";
+import { storage } from "../lib/storage.js";
+import { randomUUID } from "node:crypto";
+
+const MAX_ATTACHMENT_SIZE = 10 * 1024 * 1024;
+
+async function employeeUserId(employeeId: string | null | undefined): Promise<string | null> {
+  if (!employeeId) return null;
+  const employee = await prisma.employee.findUnique({ where: { id: employeeId }, select: { userId: true } });
+  return employee?.userId ?? null;
+}
+
+function omitStorageKey<T extends { storageKey: string }>(attachment: T): Omit<T, "storageKey"> {
+  const clone: Record<string, unknown> = { ...attachment };
+  delete clone.storageKey;
+  return clone as Omit<T, "storageKey">;
+}
 
 const taskInclude = {
   project: { select: { id: true, name: true } },
@@ -63,6 +80,11 @@ export async function taskRoutes(app: FastifyInstance) {
         checklistItems: { orderBy: { order: "asc" } },
         timeEntries: { include: { employee: { select: { id: true, fullName: true } } }, orderBy: { date: "desc" } },
         comments: { include: { author: { select: { id: true, email: true } } }, orderBy: { createdAt: "asc" } },
+        activities: { include: { actor: { select: { id: true, email: true } } }, orderBy: { createdAt: "desc" } },
+        attachments: {
+          include: { uploadedBy: { select: { id: true, email: true } } },
+          orderBy: { createdAt: "desc" },
+        },
       },
     });
     if (!task) return reply.code(404).send({ error: "not_found" });
@@ -76,6 +98,8 @@ export async function taskRoutes(app: FastifyInstance) {
         checklistItems: task.checklistItems,
         timeEntries: task.timeEntries.map((e) => ({ ...e, hours: Number(e.hours) })),
         comments: task.comments,
+        activities: task.activities,
+        attachments: task.attachments.map((a) => omitStorageKey(a)),
       },
     });
   });
@@ -93,6 +117,18 @@ export async function taskRoutes(app: FastifyInstance) {
       },
       include: taskInclude,
     });
+    await logActivity({ taskId: task.id, actorId: req.user!.id, action: "created" });
+    if (task.assigneeId) {
+      const assigneeUserId = await employeeUserId(task.assigneeId);
+      if (assigneeUserId) {
+        await notify({
+          userId: assigneeUserId,
+          type: "TASK_ASSIGNED",
+          title: `You were assigned: ${task.title}`,
+          relatedTaskId: task.id,
+        });
+      }
+    }
     return reply.code(201).send({ task: serializeTask(task) });
   });
 
@@ -125,6 +161,67 @@ export async function taskRoutes(app: FastifyInstance) {
         },
         include: taskInclude,
       });
+
+      if (status !== undefined && status !== existing.status) {
+        await logActivity({
+          taskId: id,
+          actorId: user.id,
+          action: "status_changed",
+          fromValue: existing.status,
+          toValue: status,
+        });
+        if (status === "COMPLETED" && task.createdById && task.createdById !== user.id) {
+          await notify({
+            userId: task.createdById,
+            type: "TASK_COMPLETED",
+            title: `Task completed: ${task.title}`,
+            relatedTaskId: task.id,
+          });
+        }
+      }
+
+      if (data.assigneeId !== undefined && data.assigneeId !== existing.assigneeId) {
+        const isFirstAssignment = !existing.assigneeId;
+        await logActivity({
+          taskId: id,
+          actorId: user.id,
+          action: isFirstAssignment ? "assigned" : "reassigned",
+          fromValue: existing.assigneeId,
+          toValue: data.assigneeId,
+        });
+        const [oldUserId, newUserId] = await Promise.all([
+          employeeUserId(existing.assigneeId),
+          employeeUserId(data.assigneeId),
+        ]);
+        if (isFirstAssignment) {
+          if (newUserId) {
+            await notify({
+              userId: newUserId,
+              type: "TASK_ASSIGNED",
+              title: `You were assigned: ${task.title}`,
+              relatedTaskId: task.id,
+            });
+          }
+        } else {
+          if (oldUserId) {
+            await notify({
+              userId: oldUserId,
+              type: "TASK_REASSIGNED",
+              title: `Reassigned away from you: ${task.title}`,
+              relatedTaskId: task.id,
+            });
+          }
+          if (newUserId) {
+            await notify({
+              userId: newUserId,
+              type: "TASK_REASSIGNED",
+              title: `You were assigned: ${task.title}`,
+              relatedTaskId: task.id,
+            });
+          }
+        }
+      }
+
       return reply.send({ task: serializeTask(task) });
     }
 
@@ -151,6 +248,25 @@ export async function taskRoutes(app: FastifyInstance) {
       },
       include: taskInclude,
     });
+
+    if (status !== undefined && status !== existing.status) {
+      await logActivity({
+        taskId: id,
+        actorId: user.id,
+        action: "status_changed",
+        fromValue: existing.status,
+        toValue: status,
+      });
+      if (status === "COMPLETED" && task.createdById && task.createdById !== user.id) {
+        await notify({
+          userId: task.createdById,
+          type: "TASK_COMPLETED",
+          title: `Task completed: ${task.title}`,
+          relatedTaskId: task.id,
+        });
+      }
+    }
+
     return reply.send({ task: serializeTask(task) });
   });
 
@@ -230,6 +346,72 @@ export async function taskRoutes(app: FastifyInstance) {
       data: { taskId: id, authorId: req.user!.id, content: parsed.data.content },
       include: { author: { select: { id: true, email: true } } },
     });
+    await logActivity({ taskId: id, actorId: req.user!.id, action: "comment_added" });
+    if (task.assigneeId) {
+      const assigneeUserId = await employeeUserId(task.assigneeId);
+      if (assigneeUserId && assigneeUserId !== req.user!.id) {
+        await notify({
+          userId: assigneeUserId,
+          type: "COMMENT_ADDED",
+          title: `New comment on: ${task.title}`,
+          body: parsed.data.content.slice(0, 200),
+          relatedTaskId: task.id,
+        });
+      }
+    }
     return reply.code(201).send({ comment });
+  });
+
+  app.post("/:id/attachments", { preHandler: app.requireAuth }, async (req, reply) => {
+    const { id } = req.params as { id: string };
+    const task = await prisma.task.findUnique({ where: { id } });
+    if (!task) return reply.code(404).send({ error: "not_found" });
+    const user = req.user!;
+    const canUpdateAny = user.permissions.includes("tasks.update") && user.roleName !== "EMPLOYEE";
+    const isOwnTask = task.assigneeId && task.assigneeId === user.employeeId;
+    if (!canUpdateAny && !isOwnTask) {
+      return reply.code(403).send({ error: "forbidden" });
+    }
+    const file = await req.file();
+    if (!file) return reply.code(400).send({ error: "no_file" });
+    const buffer = await file.toBuffer();
+    if (buffer.length > MAX_ATTACHMENT_SIZE) {
+      return reply.code(400).send({ error: "file_too_large" });
+    }
+    const key = `task-attachments/${id}/${randomUUID()}-${file.filename}`;
+    await storage.put(key, buffer);
+    const attachment = await prisma.taskAttachment.create({
+      data: {
+        taskId: id,
+        fileName: file.filename,
+        fileSize: buffer.length,
+        mimeType: file.mimetype,
+        storageKey: key,
+        uploadedById: user.id,
+      },
+      include: { uploadedBy: { select: { id: true, email: true } } },
+    });
+    return reply.code(201).send({ attachment: omitStorageKey(attachment) });
+  });
+
+  app.get("/:id/attachments/:attachmentId", { preHandler: app.requireAuth }, async (req, reply) => {
+    const { id, attachmentId } = req.params as { id: string; attachmentId: string };
+    const task = await prisma.task.findUnique({ where: { id } });
+    if (!task) return reply.code(404).send({ error: "not_found" });
+    const user = req.user!;
+    const canViewAny = user.permissions.includes("tasks.view") && user.roleName !== "EMPLOYEE";
+    const isOwnTask = task.assigneeId && task.assigneeId === user.employeeId;
+    if (!canViewAny && !isOwnTask) {
+      return reply.code(403).send({ error: "forbidden" });
+    }
+    const attachment = await prisma.taskAttachment.findUnique({ where: { id: attachmentId } });
+    if (!attachment || attachment.taskId !== id) {
+      return reply.code(404).send({ error: "not_found" });
+    }
+    const buffer = await storage.get(attachment.storageKey);
+    reply.header("Content-Type", attachment.mimeType);
+    reply.header("Content-Disposition", `attachment; filename="${attachment.fileName}"`);
+    reply.header("Cache-Control", "private, max-age=300");
+    return reply.send(buffer);
   });
 }

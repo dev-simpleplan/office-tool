@@ -55,4 +55,19 @@ export const api = {
     const blob = await res.blob();
     return URL.createObjectURL(blob);
   },
+  async downloadBlob(path: string, filename: string): Promise<void> {
+    const res = await fetch(`${API_URL}${path}`, { credentials: "include" });
+    if (!res.ok) {
+      throw new ApiError(res.status, await res.json().catch(() => null));
+    }
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  },
 };

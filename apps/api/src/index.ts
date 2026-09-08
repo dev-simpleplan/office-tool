@@ -13,6 +13,8 @@ import { projectRoutes } from "./routes/projects.js";
 import { taskRoutes } from "./routes/tasks.js";
 import { dashboardRoutes } from "./routes/dashboard.js";
 import { reportRoutes } from "./routes/reports.js";
+import { notificationRoutes } from "./routes/notifications.js";
+import { searchRoutes } from "./routes/search.js";
 
 const app = Fastify({ logger: true });
 
@@ -22,7 +24,7 @@ await app.register(cors, {
 });
 await app.register(cookie);
 await app.register(multipart, {
-  limits: { fileSize: 5 * 1024 * 1024 },
+  limits: { fileSize: 10 * 1024 * 1024 },
 });
 await app.register(authPlugin);
 
@@ -35,6 +37,8 @@ await app.register(projectRoutes, { prefix: "/api/projects" });
 await app.register(taskRoutes, { prefix: "/api/tasks" });
 await app.register(dashboardRoutes, { prefix: "/api/dashboard" });
 await app.register(reportRoutes, { prefix: "/api/reports" });
+await app.register(notificationRoutes, { prefix: "/api/notifications" });
+await app.register(searchRoutes, { prefix: "/api/search" });
 
 app.get("/health", async () => ({ status: "ok" }));
 

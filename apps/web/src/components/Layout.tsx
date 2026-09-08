@@ -1,9 +1,12 @@
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { LayoutDashboard, Users, LogOut, Moon, Sun, Monitor, Building2, UsersRound, CalendarClock, UserCircle, FolderKanban, ListChecks, CalendarDays, Gauge, BarChart3 } from "lucide-react";
+import { useEffect, useState } from "react";
 import { useAuthStore } from "../store/authStore";
 import { useUiStore } from "../store/uiStore";
 import { api } from "../lib/api";
 import { useQueryClient } from "@tanstack/react-query";
+import { NotificationBell } from "./NotificationBell";
+import { CommandPalette } from "./CommandPalette";
 
 export function Layout() {
   const user = useAuthStore((s) => s.user);
@@ -11,6 +14,18 @@ export function Layout() {
   const setTheme = useUiStore((s) => s.setTheme);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const [paletteOpen, setPaletteOpen] = useState(false);
+
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setPaletteOpen((v) => !v);
+      }
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
 
   async function handleLogout() {
     await api.post("/api/auth/logout");
@@ -151,6 +166,13 @@ export function Layout() {
             {user ? `${user.email} · ${user.roleName}` : ""}
           </div>
           <div className="flex items-center gap-3">
+            <button
+              onClick={() => setPaletteOpen(true)}
+              className="hidden items-center gap-2 rounded-md border border-border px-3 py-1.5 text-xs text-text-muted hover:text-text sm:flex"
+            >
+              Search... <kbd className="rounded border border-border px-1 font-sans">Ctrl+K</kbd>
+            </button>
+            <NotificationBell />
             <div className="flex items-center gap-1 rounded-md border border-border p-1">
               {(["light", "system", "dark"] as const).map((t) => (
                 <button
@@ -177,6 +199,7 @@ export function Layout() {
           <Outlet />
         </main>
       </div>
+      <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} />
     </div>
   );
 }

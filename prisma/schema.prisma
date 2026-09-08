@@ -51,6 +51,9 @@ model User {
   createdProjects Project[]
   createdTasks Task[]
   taskComments TaskComment[]
+  notifications Notification[]
+  taskActivities TaskActivity[]
+  taskAttachments TaskAttachment[]
 
   @@index([roleId])
   @@map("users")
@@ -224,6 +227,7 @@ model Project {
   createdAt       DateTime      @default(now()) @map("created_at")
   updatedAt       DateTime      @updatedAt @map("updated_at")
   tasks           Task[]
+  notifications   Notification[]
 
   @@index([departmentId])
   @@index([teamId])
@@ -258,6 +262,9 @@ model Task {
   checklistItems  TaskChecklistItem[]
   timeEntries     TimeEntry[]
   comments        TaskComment[]
+  activities      TaskActivity[]
+  attachments     TaskAttachment[]
+  notifications   Notification[]
 
   @@index([projectId])
   @@index([departmentId])
@@ -265,6 +272,66 @@ model Task {
   @@index([assigneeId])
   @@index([status])
   @@map("tasks")
+}
+
+enum NotificationType {
+  TASK_ASSIGNED
+  TASK_REASSIGNED
+  TASK_COMPLETED
+  COMMENT_ADDED
+  TASK_DUE_SOON
+  TASK_OVERDUE
+  PROJECT_DEADLINE
+}
+
+model Notification {
+  id               String            @id @default(uuid()) @db.Uuid
+  userId           String            @map("user_id") @db.Uuid
+  user             User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type             NotificationType
+  title            String
+  body             String?
+  isRead           Boolean           @default(false) @map("is_read")
+  relatedTaskId    String?           @map("related_task_id") @db.Uuid
+  relatedTask      Task?             @relation(fields: [relatedTaskId], references: [id], onDelete: Cascade)
+  relatedProjectId String?           @map("related_project_id") @db.Uuid
+  relatedProject   Project?          @relation(fields: [relatedProjectId], references: [id], onDelete: Cascade)
+  createdAt        DateTime          @default(now()) @map("created_at")
+
+  @@index([userId])
+  @@index([userId, isRead])
+  @@map("notifications")
+}
+
+model TaskActivity {
+  id        String   @id @default(uuid()) @db.Uuid
+  taskId    String   @map("task_id") @db.Uuid
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  actorId   String   @map("actor_id") @db.Uuid
+  actor     User     @relation(fields: [actorId], references: [id], onDelete: Cascade)
+  action    String
+  fromValue String?  @map("from_value")
+  toValue   String?  @map("to_value")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([taskId])
+  @@map("task_activities")
+}
+
+model TaskAttachment {
+  id           String   @id @default(uuid()) @db.Uuid
+  taskId       String   @map("task_id") @db.Uuid
+  task         Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  fileName     String   @map("file_name")
+  fileSize     Int      @map("file_size")
+  mimeType     String   @map("mime_type")
+  storageKey   String   @map("storage_key")
+  uploadedById String   @map("uploaded_by_id") @db.Uuid
+  uploadedBy   User     @relation(fields: [uploadedById], references: [id], onDelete: Cascade)
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@index([taskId])
+  @@map("task_attachments")
 }
 
 model TaskChecklistItem {

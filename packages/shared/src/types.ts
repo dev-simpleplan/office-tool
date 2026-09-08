@@ -168,10 +168,60 @@ export interface TaskSummary {
   updatedAt: string;
 }
 
+export interface TaskActivitySummary {
+  id: string;
+  actorId: string;
+  actor?: { id: string; email: string } | null;
+  action: string;
+  fromValue?: string | null;
+  toValue?: string | null;
+  createdAt: string;
+}
+
+export interface TaskAttachmentSummary {
+  id: string;
+  fileName: string;
+  fileSize: number;
+  mimeType: string;
+  uploadedById: string;
+  uploadedBy?: { id: string; email: string } | null;
+  createdAt: string;
+}
+
 export interface TaskDetail extends TaskSummary {
   checklistItems: TaskChecklistItemSummary[];
   timeEntries: TimeEntrySummary[];
   comments: TaskCommentSummary[];
+  activities: TaskActivitySummary[];
+  attachments: TaskAttachmentSummary[];
+}
+
+export type NotificationType =
+  | "TASK_ASSIGNED"
+  | "TASK_REASSIGNED"
+  | "TASK_COMPLETED"
+  | "COMMENT_ADDED"
+  | "TASK_DUE_SOON"
+  | "TASK_OVERDUE"
+  | "PROJECT_DEADLINE";
+
+export interface NotificationSummary {
+  id: string;
+  userId: string;
+  type: NotificationType;
+  title: string;
+  body?: string | null;
+  isRead: boolean;
+  relatedTaskId?: string | null;
+  relatedProjectId?: string | null;
+  createdAt: string;
+}
+
+export interface SearchResultItem {
+  id: string;
+  type: "employee" | "project" | "task" | "team" | "department";
+  title: string;
+  subtitle: string;
 }
 
 export interface AppraisalSummary {
