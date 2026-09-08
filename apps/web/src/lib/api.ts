@@ -32,6 +32,7 @@ export const api = {
     request<T>(path, { method: "POST", body: data ? JSON.stringify(data) : undefined }),
   patch: <T>(path: string, data?: unknown) =>
     request<T>(path, { method: "PATCH", body: data ? JSON.stringify(data) : undefined }),
+  delete: <T>(path: string) => request<T>(path, { method: "DELETE" }),
   async postFile<T>(path: string, file: File): Promise<T> {
     const form = new FormData();
     form.append("file", file);

@@ -32,6 +32,7 @@ export interface EmployeeDetail extends EmployeeSummary {
   createdAt: string;
   updatedAt: string;
   user?: { id: string; email: string } | null;
+  startingSalary?: number | null;
 }
 
 export interface DepartmentSummary {

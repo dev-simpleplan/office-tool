@@ -1,8 +1,37 @@
 import type { FastifyInstance } from "fastify";
 import argon2 from "argon2";
-import { CreateEmployeeSchema, UpdateEmployeeSchema, CreateAppraisalSchema } from "@office/validation";
+import {
+  CreateEmployeeSchema,
+  UpdateEmployeeSchema,
+  CreateAppraisalSchema,
+  UpdateAppraisalSchema,
+} from "@office/validation";
 import { prisma } from "../lib/prisma.js";
 import { storage } from "../lib/storage.js";
+import { Prisma } from "../generated/prisma/index.js";
+
+/** Salary is always derived from startingSalary + the full appraisal
+ *  history compounded in date order, recomputed from scratch on every
+ *  create/update/delete — never incremented in place — so an edited or
+ *  removed appraisal can't leave salary out of sync with what the
+ *  recorded history actually implies. */
+async function recomputeSalary(employeeId: string) {
+  const employee = await prisma.employee.findUnique({
+    where: { id: employeeId },
+    select: { startingSalary: true },
+  });
+  if (!employee?.startingSalary) return;
+  const appraisals = await prisma.employeeAppraisal.findMany({
+    where: { employeeId },
+    orderBy: { appraisalDate: "asc" },
+    select: { percentageHike: true },
+  });
+  let salary = new Prisma.Decimal(employee.startingSalary);
+  for (const a of appraisals) {
+    salary = salary.plus(salary.mul(a.percentageHike).div(100));
+  }
+  await prisma.employee.update({ where: { id: employeeId }, data: { salary } });
+}
 
 const ALLOWED_PHOTO_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 const EXT_BY_TYPE: Record<string, string> = {
@@ -55,6 +84,7 @@ export async function employeeRoutes(app: FastifyInstance) {
         dateOfBirth: true,
         status: true,
         salary: canViewSalary,
+        startingSalary: canViewSalary,
         departmentId: true,
         teamId: true,
         scheduleId: true,
@@ -112,6 +142,7 @@ export async function employeeRoutes(app: FastifyInstance) {
         hireDate: new Date(data.hireDate),
         dateOfBirth: data.dateOfBirth ? new Date(data.dateOfBirth) : undefined,
         salary: data.salary,
+        startingSalary: data.salary,
         userId,
         departmentId: data.departmentId,
         teamId: data.teamId,
@@ -209,6 +240,10 @@ export async function employeeRoutes(app: FastifyInstance) {
       if (!parsed.success) {
         return reply.code(400).send({ error: "invalid_input", issues: parsed.error.issues });
       }
+      const employee = await prisma.employee.findUnique({ where: { id }, select: { id: true } });
+      if (!employee) {
+        return reply.code(404).send({ error: "not_found" });
+      }
       const appraisal = await prisma.employeeAppraisal.create({
         data: {
           employeeId: id,
@@ -219,7 +254,50 @@ export async function employeeRoutes(app: FastifyInstance) {
         },
         include: { createdBy: { select: { id: true, email: true } } },
       });
+      await recomputeSalary(id);
       return reply.code(201).send({ appraisal });
+    },
+  );
+
+  app.patch(
+    "/:id/appraisals/:appraisalId",
+    { preHandler: app.requirePermission("appraisals.create") },
+    async (req, reply) => {
+      const { id, appraisalId } = req.params as { id: string; appraisalId: string };
+      const parsed = UpdateAppraisalSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return reply.code(400).send({ error: "invalid_input", issues: parsed.error.issues });
+      }
+      const existing = await prisma.employeeAppraisal.findUnique({ where: { id: appraisalId } });
+      if (!existing || existing.employeeId !== id) {
+        return reply.code(404).send({ error: "not_found" });
+      }
+      const appraisal = await prisma.employeeAppraisal.update({
+        where: { id: appraisalId },
+        data: {
+          ...(parsed.data.appraisalDate ? { appraisalDate: new Date(parsed.data.appraisalDate) } : {}),
+          ...(parsed.data.percentageHike != null ? { percentageHike: parsed.data.percentageHike } : {}),
+          ...(parsed.data.notes !== undefined ? { notes: parsed.data.notes } : {}),
+        },
+        include: { createdBy: { select: { id: true, email: true } } },
+      });
+      await recomputeSalary(id);
+      return reply.send({ appraisal });
+    },
+  );
+
+  app.delete(
+    "/:id/appraisals/:appraisalId",
+    { preHandler: app.requirePermission("appraisals.create") },
+    async (req, reply) => {
+      const { id, appraisalId } = req.params as { id: string; appraisalId: string };
+      const existing = await prisma.employeeAppraisal.findUnique({ where: { id: appraisalId } });
+      if (!existing || existing.employeeId !== id) {
+        return reply.code(404).send({ error: "not_found" });
+      }
+      await prisma.employeeAppraisal.delete({ where: { id: appraisalId } });
+      await recomputeSalary(id);
+      return reply.send({ ok: true });
     },
   );
 }

@@ -3,7 +3,12 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Badge, Button, Input, ConfirmDialog, Avatar } from "@office/ui";
-import { UpdateEmployeeSchema, CreateAppraisalSchema, type UpdateEmployeeInput, type CreateAppraisalInput } from "@office/validation";
+import {
+  UpdateEmployeeSchema,
+  CreateAppraisalSchema,
+  type UpdateEmployeeInput,
+  type CreateAppraisalInput,
+} from "@office/validation";
 import { api } from "../lib/api";
 import { useAuthStore } from "../store/authStore";
 import { useEmployeePhoto } from "../lib/useEmployeePhoto";
@@ -39,6 +44,8 @@ export function EmployeeDetailPage() {
   const [editing, setEditing] = useState(false);
   const [confirmArchive, setConfirmArchive] = useState(false);
   const [showAppraisalForm, setShowAppraisalForm] = useState(false);
+  const [editingAppraisalId, setEditingAppraisalId] = useState<string | null>(null);
+  const [deleteAppraisalId, setDeleteAppraisalId] = useState<string | null>(null);
   const [photoError, setPhotoError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -101,12 +108,37 @@ export function EmployeeDetailPage() {
     },
   });
 
+  function invalidateAppraisalData() {
+    queryClient.invalidateQueries({ queryKey: ["employee-appraisals", id] });
+    queryClient.invalidateQueries({ queryKey: ["employee", id] });
+    queryClient.invalidateQueries({ queryKey: ["employees"] });
+  }
+
   const appraisalMutation = useMutation({
     mutationFn: (input: CreateAppraisalInput) => api.post(`/api/employees/${id}/appraisals`, input),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["employee-appraisals", id] });
+      invalidateAppraisalData();
       resetAppraisal();
       setShowAppraisalForm(false);
+    },
+  });
+
+  const updateAppraisalMutation = useMutation({
+    mutationFn: (input: CreateAppraisalInput) =>
+      api.patch(`/api/employees/${id}/appraisals/${editingAppraisalId}`, input),
+    onSuccess: () => {
+      invalidateAppraisalData();
+      resetAppraisal();
+      setEditingAppraisalId(null);
+      setShowAppraisalForm(false);
+    },
+  });
+
+  const deleteAppraisalMutation = useMutation({
+    mutationFn: (appraisalId: string) => api.delete(`/api/employees/${id}/appraisals/${appraisalId}`),
+    onSuccess: () => {
+      invalidateAppraisalData();
+      setDeleteAppraisalId(null);
     },
   });
 
@@ -284,7 +316,22 @@ export function EmployeeDetailPage() {
             <Field label="Department" value={e.department?.name ?? "Unassigned"} />
             <Field label="Team" value={e.team?.name ?? "Unassigned"} />
             <Field label="Work Schedule" value={e.schedule?.name ?? "Unassigned"} />
-            {e.salary != null && <Field label="Salary" value={`$${e.salary}`} />}
+            {e.startingSalary != null && (
+              <Field label="Starting Salary" value={`$${e.startingSalary}`} />
+            )}
+            {e.salary != null && (
+              <Field
+                label="Current Salary"
+                value={
+                  e.startingSalary != null && e.startingSalary > 0
+                    ? `$${e.salary} (${e.salary >= e.startingSalary ? "+" : ""}${(
+                        ((e.salary - e.startingSalary) / e.startingSalary) *
+                        100
+                      ).toFixed(1)}%)`
+                    : `$${e.salary}`
+                }
+              />
+            )}
             <Field label="Login Account" value={e.user?.email ?? "No login created"} />
             <Field label="Added On" value={new Date(e.createdAt).toLocaleString()} />
             <Field label="Last Updated" value={new Date(e.updatedAt).toLocaleString()} />
@@ -310,7 +357,17 @@ export function EmployeeDetailPage() {
             {canCreateAppraisal && (
               <Button
                 variant="secondary"
-                onClick={() => setShowAppraisalForm((s) => !s)}
+                onClick={() => {
+                  if (showAppraisalForm) {
+                    setShowAppraisalForm(false);
+                    setEditingAppraisalId(null);
+                    resetAppraisal();
+                  } else {
+                    resetAppraisal({ appraisalDate: "", percentageHike: undefined, notes: "" });
+                    setEditingAppraisalId(null);
+                    setShowAppraisalForm(true);
+                  }
+                }}
               >
                 {showAppraisalForm ? "Cancel" : "Add Appraisal"}
               </Button>
@@ -319,9 +376,16 @@ export function EmployeeDetailPage() {
 
           {showAppraisalForm && canCreateAppraisal && (
             <form
-              onSubmit={handleSubmitAppraisal((formData) => appraisalMutation.mutate(formData))}
+              onSubmit={handleSubmitAppraisal((formData) =>
+                editingAppraisalId
+                  ? updateAppraisalMutation.mutate(formData)
+                  : appraisalMutation.mutate(formData),
+              )}
               className="mb-6 grid grid-cols-1 gap-4 rounded-md border border-border p-4 sm:grid-cols-3"
             >
+              {editingAppraisalId && (
+                <p className="sm:col-span-3 text-sm text-text-muted">Editing appraisal</p>
+              )}
               <div>
                 <label className="mb-1 block text-sm font-medium">Appraisal Date</label>
                 <Input type="date" {...registerAppraisal("appraisalDate")} />
@@ -345,10 +409,17 @@ export function EmployeeDetailPage() {
                 <Input {...registerAppraisal("notes")} />
               </div>
               <div className="sm:col-span-3">
-                <Button type="submit" disabled={isSubmittingAppraisal || appraisalMutation.isPending}>
-                  {appraisalMutation.isPending ? "Saving..." : "Save Appraisal"}
+                <Button
+                  type="submit"
+                  disabled={isSubmittingAppraisal || appraisalMutation.isPending || updateAppraisalMutation.isPending}
+                >
+                  {appraisalMutation.isPending || updateAppraisalMutation.isPending
+                    ? "Saving..."
+                    : editingAppraisalId
+                      ? "Update Appraisal"
+                      : "Save Appraisal"}
                 </Button>
-                {appraisalMutation.isError && (
+                {(appraisalMutation.isError || updateAppraisalMutation.isError) && (
                   <p className="mt-2 text-sm text-danger">Failed to save appraisal.</p>
                 )}
               </div>
@@ -358,16 +429,42 @@ export function EmployeeDetailPage() {
           {appraisalData?.appraisals.length ? (
             <ul className="divide-y divide-border">
               {appraisalData.appraisals.map((a) => (
-                <li key={a.id} className="py-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium text-text">
-                      {new Date(a.appraisalDate).toLocaleDateString()}
-                    </span>
-                    <span className="text-sm font-semibold text-success">
-                      +{a.percentageHike}%
-                    </span>
+                <li key={a.id} className="flex items-start justify-between gap-4 py-3">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-3">
+                      <span className="text-sm font-medium text-text">
+                        {new Date(a.appraisalDate).toLocaleDateString()}
+                      </span>
+                      <span className="text-sm font-semibold text-success">+{a.percentageHike}%</span>
+                    </div>
+                    {a.notes && <p className="mt-1 text-sm text-text-secondary">{a.notes}</p>}
                   </div>
-                  {a.notes && <p className="mt-1 text-sm text-text-secondary">{a.notes}</p>}
+                  {canCreateAppraisal && (
+                    <div className="flex shrink-0 items-center gap-3">
+                      <button
+                        type="button"
+                        className="text-sm text-text-muted hover:text-primary"
+                        onClick={() => {
+                          resetAppraisal({
+                            appraisalDate: a.appraisalDate.slice(0, 10),
+                            percentageHike: a.percentageHike,
+                            notes: a.notes ?? "",
+                          });
+                          setEditingAppraisalId(a.id);
+                          setShowAppraisalForm(true);
+                        }}
+                      >
+                        Edit
+                      </button>
+                      <button
+                        type="button"
+                        className="text-sm text-text-muted hover:text-danger"
+                        onClick={() => setDeleteAppraisalId(a.id)}
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  )}
                 </li>
               ))}
             </ul>
@@ -385,6 +482,16 @@ export function EmployeeDetailPage() {
         pending={archiveMutation.isPending}
         onConfirm={() => archiveMutation.mutate()}
         onCancel={() => setConfirmArchive(false)}
+      />
+
+      <ConfirmDialog
+        open={!!deleteAppraisalId}
+        title="Delete Appraisal"
+        description="This will remove the appraisal and recalculate the employee's current salary from the remaining history."
+        confirmLabel="Delete"
+        pending={deleteAppraisalMutation.isPending}
+        onConfirm={() => deleteAppraisalId && deleteAppraisalMutation.mutate(deleteAppraisalId)}
+        onCancel={() => setDeleteAppraisalId(null)}
       />
     </div>
   );
