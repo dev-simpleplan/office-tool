@@ -255,3 +255,65 @@ export interface EmployeeDashboardData {
 }
 
 export type DashboardData = AdminDashboardData | TeamLeadDashboardData | EmployeeDashboardData;
+
+export interface EmployeeReport {
+  employeeId: string;
+  fullName: string;
+  start: string;
+  end: string;
+  tasksCompleted: number;
+  totalTasks: number;
+  completionRate: number;
+  hoursLogged: number;
+  estimatedHours: number;
+  actualHours: number;
+}
+
+export interface TeamReportMember {
+  employeeId: string;
+  fullName: string;
+  capacityHours: number | null;
+  assignedHours: number;
+  utilization: number | null;
+  hasSchedule: boolean;
+}
+
+export interface TeamReport {
+  teamId: string;
+  teamName: string;
+  start: string;
+  end: string;
+  memberCount: number;
+  totalCapacityHours: number;
+  totalAssignedHours: number;
+  utilization: number | null;
+  tasksCompleted: number;
+  totalTasks: number;
+  completionRate: number;
+  members: TeamReportMember[];
+}
+
+export interface ProjectReport {
+  projectId: string;
+  projectName: string;
+  start: string;
+  end: string;
+  estimatedHours: number;
+  actualHours: number;
+  progress: number;
+  totalTasks: number;
+  statusBreakdown: Record<string, number>;
+}
+
+export interface CompanyReport {
+  start: string;
+  end: string;
+  activeProjectCount: number;
+  totalTasks: number;
+  tasksCompleted: number;
+  completionRate: number;
+  totalHoursLogged: number;
+  totalCapacityHours: number;
+  totalAssignedHours: number;
+  utilization: number | null;
+}

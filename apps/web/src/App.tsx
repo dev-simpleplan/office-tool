@@ -13,6 +13,7 @@ import { TasksPage } from "./pages/TasksPage";
 import { TaskDetailPage } from "./pages/TaskDetailPage";
 import { CalendarPage } from "./pages/CalendarPage";
 import { TeamWorkloadPage } from "./pages/TeamWorkloadPage";
+import { ReportsPage } from "./pages/ReportsPage";
 import { useCurrentUser } from "./lib/useCurrentUser";
 
 function ProtectedRoutes() {
@@ -47,6 +48,7 @@ export default function App() {
         <Route path="/tasks/:id" element={<TaskDetailPage />} />
         <Route path="/calendar" element={<CalendarPage />} />
         <Route path="/team/workload" element={<TeamWorkloadPage />} />
+        <Route path="/reports" element={<ReportsPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

@@ -161,3 +161,37 @@
   font-size: 0.8rem;
   color: var(--color-text-muted);
 }
+
+.op-date-range-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+.op-date-range-picker__presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+.op-date-range-picker__preset {
+  padding: 0.4rem 0.85rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.op-date-range-picker__preset--active {
+  background: var(--color-primary);
+  color: var(--color-primary-foreground);
+  border-color: var(--color-primary);
+}
+.op-date-range-picker__custom {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.op-date-range-picker__custom .op-input {
+  width: auto;
+}

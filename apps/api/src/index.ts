@@ -12,6 +12,7 @@ import { scheduleRoutes } from "./routes/schedules.js";
 import { projectRoutes } from "./routes/projects.js";
 import { taskRoutes } from "./routes/tasks.js";
 import { dashboardRoutes } from "./routes/dashboard.js";
+import { reportRoutes } from "./routes/reports.js";
 
 const app = Fastify({ logger: true });
 
@@ -33,6 +34,7 @@ await app.register(scheduleRoutes, { prefix: "/api/schedules" });
 await app.register(projectRoutes, { prefix: "/api/projects" });
 await app.register(taskRoutes, { prefix: "/api/tasks" });
 await app.register(dashboardRoutes, { prefix: "/api/dashboard" });
+await app.register(reportRoutes, { prefix: "/api/reports" });
 
 app.get("/health", async () => ({ status: "ok" }));
 

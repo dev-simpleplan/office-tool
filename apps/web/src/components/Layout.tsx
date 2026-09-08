@@ -1,5 +1,5 @@
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
-import { LayoutDashboard, Users, LogOut, Moon, Sun, Monitor, Building2, UsersRound, CalendarClock, UserCircle, FolderKanban, ListChecks, CalendarDays, Gauge } from "lucide-react";
+import { LayoutDashboard, Users, LogOut, Moon, Sun, Monitor, Building2, UsersRound, CalendarClock, UserCircle, FolderKanban, ListChecks, CalendarDays, Gauge, BarChart3 } from "lucide-react";
 import { useAuthStore } from "../store/authStore";
 import { useUiStore } from "../store/uiStore";
 import { api } from "../lib/api";
@@ -33,6 +33,16 @@ export function Layout() {
         >
           <LayoutDashboard size={18} /> Dashboard
         </NavLink>
+        {user?.permissions.includes("reports.view") && (
+          <NavLink
+            to="/reports"
+            className={({ isActive }) =>
+              `flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium ${isActive ? "bg-primary text-primary-foreground" : "text-text hover:bg-background"}`
+            }
+          >
+            <BarChart3 size={18} /> Reports
+          </NavLink>
+        )}
         <NavLink
           to="/calendar"
           className={({ isActive }) =>

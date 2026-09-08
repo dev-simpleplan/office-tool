@@ -31,6 +31,7 @@ export const PERMISSIONS = [
   "tasks.update",
   "tasks.assign",
   "time_entries.create",
+  "reports.view",
 ] as const;
 export type PermissionName = (typeof PERMISSIONS)[number];
 
@@ -65,6 +66,7 @@ export const ROLE_PERMISSIONS: Record<RoleName, PermissionName[]> = {
     "tasks.update",
     "tasks.assign",
     "time_entries.create",
+    "reports.view",
   ],
   TEAM_LEAD: [
     "employees.view",
@@ -79,6 +81,7 @@ export const ROLE_PERMISSIONS: Record<RoleName, PermissionName[]> = {
     "tasks.update",
     "tasks.assign",
     "time_entries.create",
+    "reports.view",
   ],
   EMPLOYEE: [
     "employees.view",
@@ -89,5 +92,6 @@ export const ROLE_PERMISSIONS: Record<RoleName, PermissionName[]> = {
     "tasks.view",
     "tasks.update",
     "time_entries.create",
+    "reports.view",
   ],
 };

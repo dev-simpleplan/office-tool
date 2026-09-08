@@ -7,3 +7,4 @@ export * from "./Table";
 export * from "./Badge";
 export * from "./Avatar";
 export * from "./StatCard";
+export * from "./DateRangePicker";
