@@ -15,6 +15,22 @@ import { storage } from "../lib/storage.js";
 import { randomUUID } from "node:crypto";
 
 const MAX_ATTACHMENT_SIZE = 10 * 1024 * 1024;
+// Denylist rather than allowlist: attachments cover arbitrary office docs/images,
+// but never anything a browser or OS would treat as executable.
+const BLOCKED_ATTACHMENT_TYPES = new Set([
+  "application/x-msdownload",
+  "application/x-sh",
+  "application/x-executable",
+  "text/html",
+  "application/javascript",
+  "text/javascript",
+]);
+
+/** Strip path separators and traversal segments so a crafted filename
+ *  (e.g. "../../etc/passwd") can never escape the per-task storage prefix. */
+function sanitizeFileName(name: string): string {
+  return name.replace(/[/\\]/g, "_").replace(/^\.+/, "").slice(-200) || "file";
+}
 
 async function employeeUserId(employeeId: string | null | undefined): Promise<string | null> {
   if (!employeeId) return null;
@@ -384,16 +400,20 @@ export async function taskRoutes(app: FastifyInstance) {
     }
     const file = await req.file();
     if (!file) return reply.code(400).send({ error: "no_file" });
+    if (BLOCKED_ATTACHMENT_TYPES.has(file.mimetype)) {
+      return reply.code(400).send({ error: "unsupported_file_type" });
+    }
     const buffer = await file.toBuffer();
     if (buffer.length > MAX_ATTACHMENT_SIZE) {
       return reply.code(400).send({ error: "file_too_large" });
     }
-    const key = `task-attachments/${id}/${randomUUID()}-${file.filename}`;
+    const safeName = sanitizeFileName(file.filename);
+    const key = `task-attachments/${id}/${randomUUID()}-${safeName}`;
     await storage.put(key, buffer);
     const attachment = await prisma.taskAttachment.create({
       data: {
         taskId: id,
-        fileName: file.filename,
+        fileName: safeName,
         fileSize: buffer.length,
         mimeType: file.mimetype,
         storageKey: key,
