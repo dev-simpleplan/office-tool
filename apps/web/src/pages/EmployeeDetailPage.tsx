@@ -79,6 +79,7 @@ export function EmployeeDetailPage() {
     register,
     handleSubmit,
     reset,
+    control: employeeControl,
     formState: { errors, isSubmitting },
   } = useForm<UpdateEmployeeInput>({ resolver: zodResolver(UpdateEmployeeSchema) });
 
@@ -176,6 +177,7 @@ export function EmployeeDetailPage() {
     reset({
       fullName: e.fullName,
       jobTitle: e.jobTitle,
+      dateOfBirth: e.dateOfBirth ? e.dateOfBirth.slice(0, 10) : "",
       salary: e.salary ?? undefined,
       departmentId: e.departmentId ?? "",
       teamId: e.teamId ?? "",
@@ -248,6 +250,14 @@ export function EmployeeDetailPage() {
             <Input {...register("jobTitle")} />
             {errors.jobTitle && <p className="mt-1 text-xs text-danger">{errors.jobTitle.message}</p>}
           </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium">Date of Birth</label>
+            <Controller
+              name="dateOfBirth"
+              control={employeeControl}
+              render={({ field }) => <DatePicker value={field.value ?? ""} onChange={field.onChange} />}
+            />
+          </div>
           {canViewSalary && (
             <div>
               <label className="mb-1 block text-sm font-medium">Salary</label>
@@ -314,6 +324,10 @@ export function EmployeeDetailPage() {
             <Field label="Job Title" value={e.jobTitle} />
             <Field label="Email" value={e.email} />
             <Field label="Hire Date" value={new Date(e.hireDate).toLocaleDateString()} />
+            <Field
+              label="Date of Birth"
+              value={e.dateOfBirth ? new Date(e.dateOfBirth).toLocaleDateString() : "Not set"}
+            />
             <Field label="Department" value={e.department?.name ?? "Unassigned"} />
             <Field label="Team" value={e.team?.name ?? "Unassigned"} />
             <Field label="Work Schedule" value={e.schedule?.name ?? "Unassigned"} />

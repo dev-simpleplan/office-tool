@@ -94,6 +94,14 @@ export function EmployeesPage() {
             />
             {errors.hireDate && <p className="mt-1 text-xs text-danger">{errors.hireDate.message}</p>}
           </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium">Date of Birth</label>
+            <Controller
+              name="dateOfBirth"
+              control={control}
+              render={({ field }) => <DatePicker value={field.value ?? ""} onChange={field.onChange} />}
+            />
+          </div>
           {canViewSalary && (
             <div>
               <label className="mb-1 block text-sm font-medium">Salary</label>
