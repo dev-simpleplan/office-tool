@@ -1,3 +1,16 @@
+/* Visible keyboard focus ring, app-wide — Tailwind's preflight removes the
+   native outline, so every interactive element needs this back explicitly
+   (spec 7.1: focus must never become invisible). */
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
 .op-button {
   display: inline-flex;
   align-items: center;

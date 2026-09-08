@@ -71,46 +71,46 @@ export function EmployeesPage() {
           className="mb-6 grid grid-cols-1 gap-4 rounded-lg border border-border bg-surface p-6 sm:grid-cols-2"
         >
           <div>
-            <label className="mb-1 block text-sm font-medium">Full Name</label>
-            <Input {...register("fullName")} />
+            <label htmlFor="employee-fullName" className="mb-1 block text-sm font-medium">Full Name</label>
+            <Input id="employee-fullName" {...register("fullName")} />
             {errors.fullName && <p className="mt-1 text-xs text-danger">{errors.fullName.message}</p>}
           </div>
           <div>
-            <label className="mb-1 block text-sm font-medium">Job Title</label>
-            <Input {...register("jobTitle")} />
+            <label htmlFor="employee-jobTitle" className="mb-1 block text-sm font-medium">Job Title</label>
+            <Input id="employee-jobTitle" {...register("jobTitle")} />
             {errors.jobTitle && <p className="mt-1 text-xs text-danger">{errors.jobTitle.message}</p>}
           </div>
           <div>
-            <label className="mb-1 block text-sm font-medium">Email</label>
-            <Input type="email" {...register("email")} />
+            <label htmlFor="employee-email" className="mb-1 block text-sm font-medium">Email</label>
+            <Input id="employee-email" type="email" {...register("email")} />
             {errors.email && <p className="mt-1 text-xs text-danger">{errors.email.message}</p>}
           </div>
           <div>
-            <label className="mb-1 block text-sm font-medium">Hire Date</label>
+            <label htmlFor="employee-hireDate" className="mb-1 block text-sm font-medium">Hire Date</label>
             <Controller
               name="hireDate"
               control={control}
-              render={({ field }) => <DatePicker value={field.value ?? ""} onChange={field.onChange} />}
+              render={({ field }) => <DatePicker id="employee-hireDate" value={field.value ?? ""} onChange={field.onChange} />}
             />
             {errors.hireDate && <p className="mt-1 text-xs text-danger">{errors.hireDate.message}</p>}
           </div>
           <div>
-            <label className="mb-1 block text-sm font-medium">Date of Birth</label>
+            <label htmlFor="employee-dob" className="mb-1 block text-sm font-medium">Date of Birth</label>
             <Controller
               name="dateOfBirth"
               control={control}
-              render={({ field }) => <DatePicker value={field.value ?? ""} onChange={field.onChange} />}
+              render={({ field }) => <DatePicker id="employee-dob" value={field.value ?? ""} onChange={field.onChange} />}
             />
           </div>
           {canViewSalary && (
             <div>
-              <label className="mb-1 block text-sm font-medium">Salary</label>
-              <Input type="number" step="0.01" {...register("salary", { valueAsNumber: true })} />
+              <label htmlFor="employee-salary" className="mb-1 block text-sm font-medium">Salary</label>
+              <Input id="employee-salary" type="number" step="0.01" {...register("salary", { valueAsNumber: true })} />
             </div>
           )}
           <div>
-            <label className="mb-1 block text-sm font-medium">Department</label>
-            <select className="op-input" {...register("departmentId")}>
+            <label htmlFor="employee-department" className="mb-1 block text-sm font-medium">Department</label>
+            <select id="employee-department" className="op-input" {...register("departmentId")}>
               <option value="">None</option>
               {deptData?.departments.map((d) => (
                 <option key={d.id} value={d.id}>
@@ -120,8 +120,8 @@ export function EmployeesPage() {
             </select>
           </div>
           <div>
-            <label className="mb-1 block text-sm font-medium">Team</label>
-            <select className="op-input" {...register("teamId")}>
+            <label htmlFor="employee-team" className="mb-1 block text-sm font-medium">Team</label>
+            <select id="employee-team" className="op-input" {...register("teamId")}>
               <option value="">None</option>
               {teamData?.teams.map((t) => (
                 <option key={t.id} value={t.id}>
@@ -131,8 +131,8 @@ export function EmployeesPage() {
             </select>
           </div>
           <div>
-            <label className="mb-1 block text-sm font-medium">Work Schedule</label>
-            <select className="op-input" {...register("scheduleId")}>
+            <label htmlFor="employee-schedule" className="mb-1 block text-sm font-medium">Work Schedule</label>
+            <select id="employee-schedule" className="op-input" {...register("scheduleId")}>
               <option value="">None</option>
               {scheduleData?.schedules.map((s) => (
                 <option key={s.id} value={s.id}>

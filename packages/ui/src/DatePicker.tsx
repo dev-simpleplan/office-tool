@@ -7,6 +7,7 @@ export interface DatePickerProps {
   max?: string;
   placeholder?: string;
   disabled?: boolean;
+  id?: string;
 }
 
 const WEEKDAYS = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"];
@@ -31,7 +32,7 @@ function formatDisplay(s: string): string {
   return d.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
 }
 
-export function DatePicker({ value, onChange, min, max, placeholder, disabled }: DatePickerProps) {
+export function DatePicker({ value, onChange, min, max, placeholder, disabled, id }: DatePickerProps) {
   const [open, setOpen] = useState(false);
   const selected = parseISO(value);
   const [viewMonth, setViewMonth] = useState(() => selected ?? new Date());
@@ -76,6 +77,7 @@ export function DatePicker({ value, onChange, min, max, placeholder, disabled }:
   return (
     <div className="op-datepicker" ref={containerRef}>
       <button
+        id={id}
         type="button"
         className="op-input op-datepicker__trigger"
         onClick={() => !disabled && setOpen((o) => !o)}
