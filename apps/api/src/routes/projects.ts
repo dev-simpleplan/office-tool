@@ -25,17 +25,31 @@ function serializeProject(p: ProjectWithTasks) {
 
 export async function projectRoutes(app: FastifyInstance) {
   app.get("/", { preHandler: app.requirePermission("projects.view") }, async (req, reply) => {
-    const q = req.query as { status?: ProjectStatus; departmentId?: string; teamId?: string };
-    const projects = await prisma.project.findMany({
-      where: {
-        ...(q.status ? { status: q.status } : {}),
-        ...(q.departmentId ? { departmentId: q.departmentId } : {}),
-        ...(q.teamId ? { teamId: q.teamId } : {}),
-      },
-      include: projectInclude,
-      orderBy: { createdAt: "desc" },
-    });
-    return reply.send({ projects: projects.map(serializeProject) });
+    const q = req.query as {
+      status?: ProjectStatus;
+      departmentId?: string;
+      teamId?: string;
+      page?: string;
+      pageSize?: string;
+    };
+    const where = {
+      ...(q.status ? { status: q.status } : {}),
+      ...(q.departmentId ? { departmentId: q.departmentId } : {}),
+      ...(q.teamId ? { teamId: q.teamId } : {}),
+    };
+    const take = Math.min(Math.max(Number(q.pageSize) || 50, 1), 200);
+    const currentPage = Math.max(Number(q.page) || 1, 1);
+    const [projects, total] = await Promise.all([
+      prisma.project.findMany({
+        where,
+        include: projectInclude,
+        orderBy: { createdAt: "desc" },
+        skip: (currentPage - 1) * take,
+        take,
+      }),
+      prisma.project.count({ where }),
+    ]);
+    return reply.send({ projects: projects.map(serializeProject), page: currentPage, pageSize: take, total });
   });
 
   const projectDetailInclude = {

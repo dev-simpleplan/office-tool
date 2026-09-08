@@ -232,6 +232,7 @@ model Project {
   @@index([departmentId])
   @@index([teamId])
   @@index([status])
+  @@index([createdAt])
   @@map("projects")
 }
 
@@ -271,6 +272,8 @@ model Task {
   @@index([teamId])
   @@index([assigneeId])
   @@index([status])
+  @@index([createdAt])
+  @@index([dueDate])
   @@map("tasks")
 }
 
@@ -359,6 +362,7 @@ model TimeEntry {
 
   @@index([taskId])
   @@index([employeeId])
+  @@index([date])
   @@map("time_entries")
 }
 

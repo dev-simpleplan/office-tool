@@ -43,8 +43,14 @@ const EXT_BY_TYPE: Record<string, string> = {
 export async function employeeRoutes(app: FastifyInstance) {
   app.get("/", { preHandler: app.requirePermission("employees.view") }, async (req, reply) => {
     const canViewSalary = req.user!.permissions.includes("salary.view");
-    const employees = await prisma.employee.findMany({
+    const { page, pageSize } = req.query as { page?: string; pageSize?: string };
+    const take = Math.min(Math.max(Number(pageSize) || 50, 1), 200);
+    const currentPage = Math.max(Number(page) || 1, 1);
+    const [employees, total] = await Promise.all([
+      prisma.employee.findMany({
       orderBy: { createdAt: "desc" },
+      skip: (currentPage - 1) * take,
+      take,
       select: {
         id: true,
         fullName: true,
@@ -64,9 +70,14 @@ export async function employeeRoutes(app: FastifyInstance) {
         team: { select: { id: true, name: true } },
         schedule: { select: { id: true, name: true } },
       },
-    });
+    }),
+      prisma.employee.count(),
+    ]);
     return reply.send({
       employees: employees.map(({ photoStorageKey, ...e }) => ({ ...e, hasPhoto: !!photoStorageKey })),
+      page: currentPage,
+      pageSize: take,
+      total,
     });
   });
 

@@ -52,23 +52,33 @@ export async function taskRoutes(app: FastifyInstance) {
       status?: TaskStatus;
       priority?: Priority;
       assigneeId?: string;
+      page?: string;
+      pageSize?: string;
     };
     // Spec draws a hard line between ADMIN "view all tasks" and EMPLOYEE
     // "view their tasks" (sections 12/14) — TEAM_LEAD gets the same
     // company-wide view as ADMIN for now, matching the Projects decision.
     const isScopedToOwnTasks = req.user!.roleName === "EMPLOYEE";
-    const tasks = await prisma.task.findMany({
-      where: {
-        ...(q.projectId ? { projectId: q.projectId } : {}),
-        ...(q.status ? { status: q.status } : {}),
-        ...(q.priority ? { priority: q.priority } : {}),
-        ...(q.assigneeId ? { assigneeId: q.assigneeId } : {}),
-        ...(isScopedToOwnTasks ? { assigneeId: req.user!.employeeId ?? "__none__" } : {}),
-      },
-      include: taskInclude,
-      orderBy: { createdAt: "desc" },
-    });
-    return reply.send({ tasks: tasks.map(serializeTask) });
+    const where = {
+      ...(q.projectId ? { projectId: q.projectId } : {}),
+      ...(q.status ? { status: q.status } : {}),
+      ...(q.priority ? { priority: q.priority } : {}),
+      ...(q.assigneeId ? { assigneeId: q.assigneeId } : {}),
+      ...(isScopedToOwnTasks ? { assigneeId: req.user!.employeeId ?? "__none__" } : {}),
+    };
+    const take = Math.min(Math.max(Number(q.pageSize) || 50, 1), 200);
+    const currentPage = Math.max(Number(q.page) || 1, 1);
+    const [tasks, total] = await Promise.all([
+      prisma.task.findMany({
+        where,
+        include: taskInclude,
+        orderBy: { createdAt: "desc" },
+        skip: (currentPage - 1) * take,
+        take,
+      }),
+      prisma.task.count({ where }),
+    ]);
+    return reply.send({ tasks: tasks.map(serializeTask), page: currentPage, pageSize: take, total });
   });
 
   app.get("/:id", { preHandler: app.requirePermission("tasks.view") }, async (req, reply) => {
