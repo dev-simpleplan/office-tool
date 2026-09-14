@@ -5,6 +5,8 @@ import {
   UpdateEmployeeSchema,
   CreateAppraisalSchema,
   UpdateAppraisalSchema,
+  CreateLoginSchema,
+  CreateLeaveRequestSchema,
 } from "@office/validation";
 import { prisma } from "../lib/prisma.js";
 import { storage } from "../lib/storage.js";
@@ -31,6 +33,25 @@ async function recomputeSalary(employeeId: string) {
     salary = salary.plus(salary.mul(a.percentageHike).div(100));
   }
   await prisma.employee.update({ where: { id: employeeId }, data: { salary } });
+}
+
+/** leavesTaken is always the sum of recorded LeaveRequest.days, recomputed
+ *  from scratch after every create/delete — same non-incremental pattern
+ *  as recomputeSalary, for the same reason: it can never drift. */
+async function recomputeLeavesTaken(employeeId: string) {
+  const agg = await prisma.leaveRequest.aggregate({
+    where: { employeeId },
+    _sum: { days: true },
+  });
+  await prisma.employee.update({
+    where: { id: employeeId },
+    data: { leavesTaken: agg._sum.days ?? 0 },
+  });
+}
+
+function inclusiveDayCount(start: Date, end: Date): number {
+  const ms = end.getTime() - start.getTime();
+  return Math.floor(ms / (1000 * 60 * 60 * 24)) + 1;
 }
 
 const ALLOWED_PHOTO_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
@@ -187,6 +208,35 @@ export async function employeeRoutes(app: FastifyInstance) {
     return reply.send({ employee });
   });
 
+  app.post("/:id/create-login", { preHandler: app.requirePermission("employees.update") }, async (req, reply) => {
+    const { id } = req.params as { id: string };
+    const parsed = CreateLoginSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return reply.code(400).send({ error: "invalid_input", issues: parsed.error.issues });
+    }
+    const employee = await prisma.employee.findUnique({ where: { id }, select: { userId: true, email: true } });
+    if (!employee) {
+      return reply.code(404).send({ error: "not_found" });
+    }
+    if (employee.userId) {
+      return reply.code(409).send({ error: "login_already_exists" });
+    }
+    const existingUser = await prisma.user.findUnique({ where: { email: employee.email } });
+    if (existingUser) {
+      return reply.code(409).send({ error: "email_already_has_account" });
+    }
+    const employeeRole = await prisma.role.findUnique({ where: { name: "EMPLOYEE" } });
+    if (!employeeRole) {
+      return reply.code(500).send({ error: "role_not_seeded" });
+    }
+    const passwordHash = await argon2.hash(parsed.data.password);
+    const user = await prisma.user.create({
+      data: { email: employee.email, passwordHash, roleId: employeeRole.id },
+    });
+    await prisma.employee.update({ where: { id }, data: { userId: user.id } });
+    return reply.code(201).send({ ok: true });
+  });
+
   app.post("/:id/photo", { preHandler: app.requirePermission("employees.update") }, async (req, reply) => {
     const { id } = req.params as { id: string };
     const file = await req.file();
@@ -308,6 +358,66 @@ export async function employeeRoutes(app: FastifyInstance) {
       }
       await prisma.employeeAppraisal.delete({ where: { id: appraisalId } });
       await recomputeSalary(id);
+      return reply.send({ ok: true });
+    },
+  );
+
+  app.get(
+    "/:id/leave-requests",
+    { preHandler: app.requirePermission("employees.view") },
+    async (req, reply) => {
+      const { id } = req.params as { id: string };
+      const leaveRequests = await prisma.leaveRequest.findMany({
+        where: { employeeId: id },
+        orderBy: { startDate: "desc" },
+        include: { createdBy: { select: { id: true, email: true } } },
+      });
+      return reply.send({ leaveRequests });
+    },
+  );
+
+  app.post(
+    "/:id/leave-requests",
+    { preHandler: app.requirePermission("employees.update") },
+    async (req, reply) => {
+      const { id } = req.params as { id: string };
+      const parsed = CreateLeaveRequestSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return reply.code(400).send({ error: "invalid_input", issues: parsed.error.issues });
+      }
+      const startDate = new Date(parsed.data.startDate);
+      const endDate = new Date(parsed.data.endDate);
+      if (endDate < startDate) {
+        return reply.code(400).send({ error: "invalid_range", message: "endDate is before startDate" });
+      }
+      const leaveRequest = await prisma.leaveRequest.create({
+        data: {
+          employeeId: id,
+          startDate,
+          endDate,
+          days: inclusiveDayCount(startDate, endDate),
+          type: parsed.data.type,
+          notes: parsed.data.notes,
+          createdById: req.user!.id,
+        },
+        include: { createdBy: { select: { id: true, email: true } } },
+      });
+      await recomputeLeavesTaken(id);
+      return reply.code(201).send({ leaveRequest });
+    },
+  );
+
+  app.delete(
+    "/:id/leave-requests/:leaveRequestId",
+    { preHandler: app.requirePermission("employees.update") },
+    async (req, reply) => {
+      const { id, leaveRequestId } = req.params as { id: string; leaveRequestId: string };
+      const existing = await prisma.leaveRequest.findUnique({ where: { id: leaveRequestId } });
+      if (!existing || existing.employeeId !== id) {
+        return reply.code(404).send({ error: "not_found" });
+      }
+      await prisma.leaveRequest.delete({ where: { id: leaveRequestId } });
+      await recomputeLeavesTaken(id);
       return reply.send({ ok: true });
     },
   );

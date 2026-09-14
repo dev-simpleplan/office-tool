@@ -6,8 +6,13 @@ import { Badge, Button, Input, ConfirmDialog, Avatar, DatePicker } from "@office
 import {
   UpdateEmployeeSchema,
   CreateAppraisalSchema,
+  CreateLoginSchema,
+  CreateLeaveRequestSchema,
+  LEAVE_TYPES,
   type UpdateEmployeeInput,
   type CreateAppraisalInput,
+  type CreateLoginInput,
+  type CreateLeaveRequestInput,
 } from "@office/validation";
 import { api } from "../lib/api";
 import { useAuthStore } from "../store/authStore";
@@ -18,6 +23,7 @@ import type {
   TeamSummary,
   WorkScheduleSummary,
   AppraisalSummary,
+  LeaveRequestSummary,
 } from "@office/shared";
 import { useRef, useState } from "react";
 
@@ -48,6 +54,13 @@ export function EmployeeDetailPage() {
   const [deleteAppraisalId, setDeleteAppraisalId] = useState<string | null>(null);
   const [photoError, setPhotoError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [showLeaveForm, setShowLeaveForm] = useState(false);
+  const [deleteLeaveId, setDeleteLeaveId] = useState<string | null>(null);
+  const [showLoginForm, setShowLoginForm] = useState(false);
+  const [loginError, setLoginError] = useState<string | null>(null);
+  const [showPasswordForm, setShowPasswordForm] = useState(false);
+  const [passwordError, setPasswordError] = useState<string | null>(null);
+  const [passwordSuccess, setPasswordSuccess] = useState(false);
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ["employee", id],
@@ -74,6 +87,10 @@ export function EmployeeDetailPage() {
     queryFn: () => api.get<{ appraisals: AppraisalSummary[] }>(`/api/employees/${id}/appraisals`),
     enabled: !!canViewAppraisals,
   });
+  const { data: leaveData } = useQuery({
+    queryKey: ["employee-leave-requests", id],
+    queryFn: () => api.get<{ leaveRequests: LeaveRequestSummary[] }>(`/api/employees/${id}/leave-requests`),
+  });
 
   const {
     register,
@@ -90,6 +107,25 @@ export function EmployeeDetailPage() {
     control: appraisalControl,
     formState: { errors: appraisalErrors, isSubmitting: isSubmittingAppraisal },
   } = useForm<CreateAppraisalInput>({ resolver: zodResolver(CreateAppraisalSchema) });
+
+  const {
+    register: registerLeave,
+    handleSubmit: handleSubmitLeave,
+    reset: resetLeave,
+    control: leaveControl,
+    watch: watchLeave,
+    formState: { errors: leaveErrors, isSubmitting: isSubmittingLeave },
+  } = useForm<CreateLeaveRequestInput>({ resolver: zodResolver(CreateLeaveRequestSchema) });
+  const leaveStartDate = watchLeave("startDate");
+
+  const {
+    register: registerLogin,
+    handleSubmit: handleSubmitLogin,
+    reset: resetLogin,
+    formState: { errors: loginErrors, isSubmitting: isSubmittingLogin },
+  } = useForm<CreateLoginInput>({ resolver: zodResolver(CreateLoginSchema) });
+
+  const passwordForm = useForm<{ currentPassword: string; newPassword: string }>();
 
   const updateMutation = useMutation({
     mutationFn: (input: UpdateEmployeeInput) => api.patch(`/api/employees/${id}`, input),
@@ -144,6 +180,63 @@ export function EmployeeDetailPage() {
     },
   });
 
+  function invalidateLeaveData() {
+    queryClient.invalidateQueries({ queryKey: ["employee-leave-requests", id] });
+    queryClient.invalidateQueries({ queryKey: ["employee", id] });
+    queryClient.invalidateQueries({ queryKey: ["employees"] });
+  }
+
+  const leaveMutation = useMutation({
+    mutationFn: (input: CreateLeaveRequestInput) => api.post(`/api/employees/${id}/leave-requests`, input),
+    onSuccess: () => {
+      invalidateLeaveData();
+      resetLeave();
+      setShowLeaveForm(false);
+    },
+  });
+
+  const deleteLeaveMutation = useMutation({
+    mutationFn: (leaveId: string) => api.delete(`/api/employees/${id}/leave-requests/${leaveId}`),
+    onSuccess: () => {
+      invalidateLeaveData();
+      setDeleteLeaveId(null);
+    },
+  });
+
+  const createLoginMutation = useMutation({
+    mutationFn: (input: CreateLoginInput) => api.post(`/api/employees/${id}/create-login`, input),
+    onSuccess: () => {
+      setLoginError(null);
+      resetLogin();
+      setShowLoginForm(false);
+      queryClient.invalidateQueries({ queryKey: ["employee", id] });
+    },
+    onError: (err) => {
+      const body = (err as { body?: { error?: string } }).body;
+      setLoginError(
+        body?.error === "email_already_has_account"
+          ? "An account with this email already exists."
+          : "Failed to create login.",
+      );
+    },
+  });
+
+  const changePasswordMutation = useMutation({
+    mutationFn: (input: { currentPassword: string; newPassword: string }) =>
+      api.post("/api/auth/change-password", input),
+    onSuccess: () => {
+      setPasswordError(null);
+      setPasswordSuccess(true);
+      passwordForm.reset();
+      setTimeout(() => setShowPasswordForm(false), 1500);
+    },
+    onError: (err) => {
+      const status = (err as { status?: number }).status;
+      setPasswordSuccess(false);
+      setPasswordError(status === 401 ? "Current password is incorrect." : "Failed to change password.");
+    },
+  });
+
   const photoUrl = useEmployeePhoto(id, data?.employee.hasPhoto ?? false);
 
   const photoMutation = useMutation({
@@ -183,7 +276,6 @@ export function EmployeeDetailPage() {
       teamId: e.teamId ?? "",
       scheduleId: e.scheduleId ?? "",
       leavesAvailable: e.leavesAvailable,
-      leavesTaken: e.leavesTaken,
     });
     setEditing(true);
   }
@@ -298,12 +390,11 @@ export function EmployeeDetailPage() {
             </select>
           </div>
           <div>
-            <label className="mb-1 block text-sm font-medium">Leaves Available</label>
+            <label className="mb-1 block text-sm font-medium">Annual Leave Allowance (days/year)</label>
             <Input type="number" {...register("leavesAvailable", { valueAsNumber: true })} />
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium">Leaves Taken</label>
-            <Input type="number" {...register("leavesTaken", { valueAsNumber: true })} />
+            <p className="mt-1 text-xs text-text-muted">
+              Days taken are tracked in Leave History below and can't be edited directly here.
+            </p>
           </div>
           <div className="sm:col-span-2 flex items-center gap-3">
             <Button type="submit" disabled={isSubmitting || updateMutation.isPending}>
@@ -347,7 +438,75 @@ export function EmployeeDetailPage() {
                 }
               />
             )}
-            <Field label="Login Account" value={e.user?.email ?? "No login created"} />
+            <div>
+              <div className="text-xs font-medium uppercase tracking-wide text-text-muted">Login Account</div>
+              <div className="mt-1 flex items-center gap-3 text-sm text-text">
+                {e.user?.email ?? "No login created"}
+                {!e.user && canUpdate && e.status === "ACTIVE" && (
+                  <button
+                    type="button"
+                    className="text-xs font-semibold text-primary hover:underline"
+                    onClick={() => setShowLoginForm((s) => !s)}
+                  >
+                    {showLoginForm ? "Cancel" : "Create Login"}
+                  </button>
+                )}
+                {user?.employeeId === e.id && e.user && (
+                  <button
+                    type="button"
+                    className="text-xs font-semibold text-primary hover:underline"
+                    onClick={() => {
+                      setPasswordSuccess(false);
+                      setPasswordError(null);
+                      setShowPasswordForm((s) => !s);
+                    }}
+                  >
+                    {showPasswordForm ? "Cancel" : "Change Password"}
+                  </button>
+                )}
+              </div>
+              {showLoginForm && (
+                <form
+                  onSubmit={handleSubmitLogin((formData) => createLoginMutation.mutate(formData))}
+                  className="mt-3 flex max-w-sm items-start gap-2"
+                >
+                  <div className="flex-1">
+                    <Input type="text" placeholder="Temporary password" {...registerLogin("password")} />
+                    {loginErrors.password && (
+                      <p className="mt-1 text-xs text-danger">{loginErrors.password.message}</p>
+                    )}
+                    {loginError && <p className="mt-1 text-xs text-danger">{loginError}</p>}
+                  </div>
+                  <Button type="submit" disabled={isSubmittingLogin || createLoginMutation.isPending}>
+                    Create
+                  </Button>
+                </form>
+              )}
+              {showPasswordForm && (
+                <form
+                  onSubmit={passwordForm.handleSubmit((formData) => changePasswordMutation.mutate(formData))}
+                  className="mt-3 max-w-sm space-y-2"
+                >
+                  <Input
+                    type="password"
+                    placeholder="Current password"
+                    {...passwordForm.register("currentPassword", { required: true })}
+                  />
+                  <Input
+                    type="password"
+                    placeholder="New password (min 8 characters)"
+                    {...passwordForm.register("newPassword", { required: true, minLength: 8 })}
+                  />
+                  <div className="flex items-center gap-3">
+                    <Button type="submit" disabled={changePasswordMutation.isPending}>
+                      {changePasswordMutation.isPending ? "Saving..." : "Update Password"}
+                    </Button>
+                    {passwordError && <p className="text-xs text-danger">{passwordError}</p>}
+                    {passwordSuccess && <p className="text-xs text-success">Password updated.</p>}
+                  </div>
+                </form>
+              )}
+            </div>
             <Field label="Added On" value={new Date(e.createdAt).toLocaleString()} />
             <Field label="Last Updated" value={new Date(e.updatedAt).toLocaleString()} />
           </div>
@@ -356,12 +515,120 @@ export function EmployeeDetailPage() {
             Leave Balance
           </h2>
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-3">
-            <Field label="Available" value={String(e.leavesAvailable)} />
-            <Field label="Taken" value={String(e.leavesTaken)} />
-            <Field label="Remaining" value={String(e.leavesAvailable - e.leavesTaken)} />
+            <Field label="Annual Allowance" value={`${e.leavesAvailable} days`} />
+            <Field label="Taken" value={`${e.leavesTaken} days`} />
+            <Field label="Remaining" value={`${e.leavesAvailable - e.leavesTaken} days`} />
           </div>
         </div>
       )}
+
+      {canUpdate && (
+        <div className="mt-6 rounded-lg border border-border bg-surface p-6">
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="text-sm font-semibold uppercase tracking-wide text-text-muted">Leave History</h2>
+            <Button
+              variant="secondary"
+              onClick={() => {
+                if (showLeaveForm) {
+                  resetLeave();
+                }
+                setShowLeaveForm((s) => !s);
+              }}
+            >
+              {showLeaveForm ? "Cancel" : "Add Leave"}
+            </Button>
+          </div>
+
+          {showLeaveForm && (
+            <form
+              onSubmit={handleSubmitLeave((formData) => leaveMutation.mutate(formData))}
+              className="mb-6 grid grid-cols-1 gap-4 rounded-md border border-border p-4 sm:grid-cols-3"
+            >
+              <div>
+                <label className="mb-1 block text-sm font-medium">Start Date</label>
+                <Controller
+                  name="startDate"
+                  control={leaveControl}
+                  render={({ field }) => <DatePicker value={field.value ?? ""} onChange={field.onChange} />}
+                />
+                {leaveErrors.startDate && (
+                  <p className="mt-1 text-xs text-danger">{leaveErrors.startDate.message}</p>
+                )}
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium">End Date</label>
+                <Controller
+                  name="endDate"
+                  control={leaveControl}
+                  render={({ field }) => (
+                    <DatePicker value={field.value ?? ""} onChange={field.onChange} min={leaveStartDate || undefined} />
+                  )}
+                />
+                {leaveErrors.endDate && <p className="mt-1 text-xs text-danger">{leaveErrors.endDate.message}</p>}
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium">Type</label>
+                <select className="op-input" {...registerLeave("type")}>
+                  {LEAVE_TYPES.map((t) => (
+                    <option key={t} value={t}>
+                      {t}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="sm:col-span-3">
+                <label className="mb-1 block text-sm font-medium">Notes</label>
+                <Input {...registerLeave("notes")} />
+              </div>
+              <div className="sm:col-span-3">
+                <Button type="submit" disabled={isSubmittingLeave || leaveMutation.isPending}>
+                  {leaveMutation.isPending ? "Saving..." : "Save Leave"}
+                </Button>
+                {leaveMutation.isError && <p className="mt-2 text-sm text-danger">Failed to save leave.</p>}
+              </div>
+            </form>
+          )}
+
+          {leaveData?.leaveRequests.length ? (
+            <ul className="divide-y divide-border">
+              {leaveData.leaveRequests.map((l) => (
+                <li key={l.id} className="flex items-start justify-between gap-4 py-3">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-3">
+                      <span className="text-sm font-medium text-text">
+                        {new Date(l.startDate).toLocaleDateString()} – {new Date(l.endDate).toLocaleDateString()}
+                      </span>
+                      <span className="text-sm font-semibold text-text-secondary">
+                        {l.days} day{l.days === 1 ? "" : "s"} · {l.type}
+                      </span>
+                    </div>
+                    {l.notes && <p className="mt-1 text-sm text-text-secondary">{l.notes}</p>}
+                  </div>
+                  <button
+                    type="button"
+                    className="text-sm text-text-muted hover:text-danger"
+                    onClick={() => setDeleteLeaveId(l.id)}
+                  >
+                    Delete
+                  </button>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-sm text-text-muted">No leave recorded yet.</p>
+          )}
+        </div>
+      )}
+
+      <ConfirmDialog
+        open={!!deleteLeaveId}
+        title="Delete Leave"
+        description="This will remove the leave record and recalculate the employee's leave balance."
+        confirmLabel="Delete"
+        pending={deleteLeaveMutation.isPending}
+        onConfirm={() => deleteLeaveId && deleteLeaveMutation.mutate(deleteLeaveId)}
+        onCancel={() => setDeleteLeaveId(null)}
+      />
 
       {canViewAppraisals && (
         <div className="mt-6 rounded-lg border border-border bg-surface p-6">

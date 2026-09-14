@@ -235,6 +235,20 @@ export interface AppraisalSummary {
   createdAt: string;
 }
 
+export type LeaveType = "SICK" | "CASUAL" | "VACATION" | "UNPAID" | "OTHER";
+
+export interface LeaveRequestSummary {
+  id: string;
+  employeeId: string;
+  startDate: string;
+  endDate: string;
+  days: number;
+  type: LeaveType;
+  notes?: string | null;
+  createdBy?: { id: string; email: string } | null;
+  createdAt: string;
+}
+
 export interface WorkloadResult {
   employeeId: string;
   capacityHours: number | null;

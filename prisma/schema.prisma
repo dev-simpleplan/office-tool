@@ -48,6 +48,7 @@ model User {
   employee     Employee?
   sessions     Session[]
   appraisalsGiven EmployeeAppraisal[]
+  leaveRequestsCreated LeaveRequest[]
   createdProjects Project[]
   createdTasks Task[]
   taskComments TaskComment[]
@@ -100,6 +101,9 @@ model Employee {
   schedule     WorkSchedule?  @relation(fields: [scheduleId], references: [id], onDelete: SetNull)
   photoStorageKey String?     @map("photo_storage_key")
   photoMimeType   String?     @map("photo_mime_type")
+  /// Annual allowance in days, admin-set. leavesTaken is derived from
+  /// LeaveRequest.days and recomputed on every create/delete — never
+  /// written to directly, same pattern as Employee.salary.
   leavesAvailable Int         @default(0) @map("leaves_available")
   leavesTaken     Int         @default(0) @map("leaves_taken")
   createdAt    DateTime       @default(now()) @map("created_at")
@@ -107,6 +111,7 @@ model Employee {
 
   ledTeams     Team[]         @relation("TeamLead")
   appraisals   EmployeeAppraisal[]
+  leaveRequests LeaveRequest[]
   ledProjects  Project[]      @relation("ProjectLead")
   assignedTasks Task[]        @relation("TaskAssignee")
   timeEntries  TimeEntry[]
@@ -131,6 +136,31 @@ model EmployeeAppraisal {
 
   @@index([employeeId])
   @@map("employee_appraisals")
+}
+
+enum LeaveType {
+  SICK
+  CASUAL
+  VACATION
+  UNPAID
+  OTHER
+}
+
+model LeaveRequest {
+  id          String    @id @default(uuid()) @db.Uuid
+  employeeId  String    @map("employee_id") @db.Uuid
+  employee    Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  startDate   DateTime  @map("start_date")
+  endDate     DateTime  @map("end_date")
+  days        Int
+  type        LeaveType @default(VACATION)
+  notes       String?
+  createdById String?   @map("created_by_id") @db.Uuid
+  createdBy   User?     @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  @@index([employeeId])
+  @@map("leave_requests")
 }
 
 model Department {

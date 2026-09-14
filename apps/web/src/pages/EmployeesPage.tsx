@@ -42,8 +42,10 @@ export function EmployeesPage() {
     handleSubmit,
     reset,
     control,
+    watch,
     formState: { errors, isSubmitting },
   } = useForm<CreateEmployeeInput>({ resolver: zodResolver(CreateEmployeeSchema) });
+  const createLogin = watch("createLogin");
 
   const createMutation = useMutation({
     mutationFn: (input: CreateEmployeeInput) => api.post("/api/employees", input),
@@ -140,6 +142,25 @@ export function EmployeesPage() {
                 </option>
               ))}
             </select>
+          </div>
+          <div className="sm:col-span-2 rounded-md border border-border p-4">
+            <label className="flex items-center gap-2 text-sm font-medium">
+              <input type="checkbox" {...register("createLogin")} />
+              Create a login account for this employee
+            </label>
+            {createLogin && (
+              <div className="mt-3 max-w-sm">
+                <label htmlFor="employee-password" className="mb-1 block text-sm font-medium">
+                  Temporary Password
+                </label>
+                <Input id="employee-password" type="text" {...register("password")} />
+                <p className="mt-1 text-xs text-text-muted">
+                  Share this with {"the employee's"} email above — they can sign in with it
+                  immediately (there is no separate invite email yet).
+                </p>
+                {errors.password && <p className="mt-1 text-xs text-danger">{errors.password.message}</p>}
+              </div>
+            )}
           </div>
           <div className="sm:col-span-2">
             <Button type="submit" disabled={isSubmitting || createMutation.isPending}>

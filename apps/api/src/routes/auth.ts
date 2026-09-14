@@ -1,6 +1,6 @@
 import type { FastifyInstance } from "fastify";
 import argon2 from "argon2";
-import { LoginSchema } from "@office/validation";
+import { LoginSchema, ChangePasswordSchema } from "@office/validation";
 import { prisma } from "../lib/prisma.js";
 import { createSession, destroySession } from "../lib/session.js";
 
@@ -59,5 +59,20 @@ export async function authRoutes(app: FastifyInstance) {
 
   app.get("/me", { preHandler: app.requireAuth }, async (req, reply) => {
     return reply.send({ user: req.user });
+  });
+
+  app.post("/change-password", { preHandler: app.requireAuth }, async (req, reply) => {
+    const parsed = ChangePasswordSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return reply.code(400).send({ error: "invalid_input", issues: parsed.error.issues });
+    }
+    const user = await prisma.user.findUniqueOrThrow({ where: { id: req.user!.id } });
+    const valid = await argon2.verify(user.passwordHash, parsed.data.currentPassword);
+    if (!valid) {
+      return reply.code(401).send({ error: "invalid_current_password" });
+    }
+    const passwordHash = await argon2.hash(parsed.data.newPassword);
+    await prisma.user.update({ where: { id: user.id }, data: { passwordHash } });
+    return reply.send({ ok: true });
   });
 }

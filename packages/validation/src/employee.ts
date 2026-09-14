@@ -25,6 +25,20 @@ export const UpdateEmployeeSchema = z.object({
   teamId: optionalUuid(),
   scheduleId: optionalUuid(),
   leavesAvailable: z.number().int().min(0).optional(),
-  leavesTaken: z.number().int().min(0).optional(),
 });
 export type UpdateEmployeeInput = z.infer<typeof UpdateEmployeeSchema>;
+
+export const CreateLoginSchema = z.object({
+  password: z.string().min(8),
+});
+export type CreateLoginInput = z.infer<typeof CreateLoginSchema>;
+
+export const LEAVE_TYPES = ["SICK", "CASUAL", "VACATION", "UNPAID", "OTHER"] as const;
+
+export const CreateLeaveRequestSchema = z.object({
+  startDate: z.string().min(1),
+  endDate: z.string().min(1),
+  type: z.enum(LEAVE_TYPES).optional().default("VACATION"),
+  notes: z.string().max(1000).optional(),
+});
+export type CreateLeaveRequestInput = z.infer<typeof CreateLeaveRequestSchema>;
