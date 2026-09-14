@@ -17,6 +17,7 @@ export const CreateTaskSchema = z.object({
   dueDate: z.string().optional().nullable(),
   estimatedHours: z.coerce.number().nonnegative().optional().nullable(),
   tags: z.array(z.string()).optional().default([]),
+  links: z.array(z.string().url().max(2000)).optional().default([]),
 });
 export type CreateTaskInput = z.infer<typeof CreateTaskSchema>;
 

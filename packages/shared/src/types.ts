@@ -164,6 +164,7 @@ export interface TaskSummary {
   actualHours: number;
   completionDate?: string | null;
   tags: string[];
+  links: string[];
   createdAt: string;
   updatedAt: string;
 }

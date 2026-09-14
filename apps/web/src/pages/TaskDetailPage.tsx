@@ -118,7 +118,26 @@ export function TaskDetailPage() {
         <div><p className="text-xs text-text-muted">Estimated Hours</p><p>{task.estimatedHours ?? "-"}</p></div>
         <div><p className="text-xs text-text-muted">Actual Hours</p><p>{task.actualHours}</p></div>
         {task.description && (
-          <div className="sm:col-span-3"><p className="text-xs text-text-muted">Description</p><p>{task.description}</p></div>
+          <div className="sm:col-span-3"><p className="text-xs text-text-muted">Description</p><p className="whitespace-pre-wrap">{task.description}</p></div>
+        )}
+        {task.links.length > 0 && (
+          <div className="sm:col-span-3">
+            <p className="mb-1 text-xs text-text-muted">Links</p>
+            <ul className="space-y-1">
+              {task.links.map((link, i) => (
+                <li key={i}>
+                  <a
+                    href={link}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm text-primary hover:underline"
+                  >
+                    {link}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </div>
         )}
         {canChangeStatus && (
           <div className="sm:col-span-3">

@@ -2,7 +2,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { CreateTaskSchema, TASK_STATUSES, TASK_PRIORITIES, type CreateTaskInput } from "@office/validation";
-import { Button, Input, Table, Badge, DatePicker, DateRangePicker, type DateRange, type DateRangePreset } from "@office/ui";
+import { Button, Input, Textarea, Table, Badge, DatePicker, DateRangePicker, type DateRange, type DateRangePreset } from "@office/ui";
+import { Plus, Trash2 } from "lucide-react";
 import { api } from "../lib/api";
 import { useAuthStore } from "../store/authStore";
 import type { TaskSummary, ProjectSummary, EmployeeSummary } from "@office/shared";
@@ -47,10 +48,25 @@ export function TasksPage() {
     control,
     formState: { errors, isSubmitting },
   } = useForm<CreateTaskInput>({ resolver: zodResolver(CreateTaskSchema) });
+  const [links, setLinks] = useState<string[]>([""]);
+  const [tagsInput, setTagsInput] = useState("");
 
   function closeForm() {
     reset({ title: "", description: "", projectId: "", assigneeId: "" });
+    setLinks([""]);
+    setTagsInput("");
     setShowForm(false);
+  }
+
+  function submitTask(formData: CreateTaskInput) {
+    createMutation.mutate({
+      ...formData,
+      links: links.map((l) => l.trim()).filter(Boolean),
+      tags: tagsInput
+        .split(",")
+        .map((t) => t.trim())
+        .filter(Boolean),
+    });
   }
 
   const createMutation = useMutation({
@@ -141,10 +157,10 @@ export function TasksPage() {
 
       {showForm && canCreate && (
         <form
-          onSubmit={handleSubmit((data) => createMutation.mutate(data))}
+          onSubmit={handleSubmit(submitTask)}
           className="mb-6 grid grid-cols-1 gap-4 rounded-lg border border-border bg-surface p-6 sm:grid-cols-2"
         >
-          <div>
+          <div className="sm:col-span-2">
             <label className="mb-1 block text-sm font-medium">Title</label>
             <Input {...register("title")} />
             {errors.title && <p className="mt-1 text-xs text-danger">{errors.title.message}</p>}
@@ -176,6 +192,22 @@ export function TasksPage() {
             </select>
           </div>
           <div>
+            <label className="mb-1 block text-sm font-medium">Status</label>
+            <select className="op-input" {...register("status")}>
+              {TASK_STATUSES.map((s) => (
+                <option key={s} value={s}>{s}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium">Start Date</label>
+            <Controller
+              name="startDate"
+              control={control}
+              render={({ field }) => <DatePicker value={field.value ?? ""} onChange={field.onChange} />}
+            />
+          </div>
+          <div>
             <label className="mb-1 block text-sm font-medium">Due Date</label>
             <Controller
               name="dueDate"
@@ -187,9 +219,46 @@ export function TasksPage() {
             <label className="mb-1 block text-sm font-medium">Estimated Hours</label>
             <Input type="number" step="0.5" {...register("estimatedHours")} />
           </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium">Tags</label>
+            <Input
+              placeholder="comma, separated, tags"
+              value={tagsInput}
+              onChange={(e) => setTagsInput(e.target.value)}
+            />
+          </div>
           <div className="sm:col-span-2">
             <label className="mb-1 block text-sm font-medium">Description</label>
-            <Input {...register("description")} />
+            <Textarea rows={5} {...register("description")} />
+          </div>
+          <div className="sm:col-span-2">
+            <label className="mb-1 block text-sm font-medium">Links</label>
+            <div className="space-y-2">
+              {links.map((link, i) => (
+                <div key={i} className="flex gap-2">
+                  <Input
+                    type="url"
+                    placeholder="https://..."
+                    value={link}
+                    onChange={(e) =>
+                      setLinks((ls) => ls.map((l, idx) => (idx === i ? e.target.value : l)))
+                    }
+                  />
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    onClick={() => setLinks((ls) => ls.filter((_, idx) => idx !== i))}
+                    disabled={links.length === 1}
+                    aria-label="Remove link"
+                  >
+                    <Trash2 size={16} />
+                  </Button>
+                </div>
+              ))}
+              <Button type="button" variant="secondary" onClick={() => setLinks((ls) => [...ls, ""])}>
+                <Plus size={16} /> Add Link
+              </Button>
+            </div>
           </div>
           <div className="sm:col-span-2 flex items-center gap-3">
             <Button type="submit" disabled={isSubmitting || createMutation.isPending}>
