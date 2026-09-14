@@ -3,14 +3,55 @@ import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { CreateTaskSchema, TASK_STATUSES, TASK_PRIORITIES, type CreateTaskInput } from "@office/validation";
 import { Button, Input, Textarea, Table, Badge, DatePicker, DateRangePicker, type DateRange, type DateRangePreset } from "@office/ui";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2, ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
 import { api } from "../lib/api";
 import { useAuthStore } from "../store/authStore";
 import type { TaskSummary, ProjectSummary, EmployeeSummary } from "@office/shared";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 type DuePreset = DateRangePreset | "all";
+
+const PRIORITY_RANK: Record<string, number> = { LOW: 0, MEDIUM: 1, HIGH: 2, URGENT: 3 };
+
+type SortKey = "title" | "project" | "assignee" | "status" | "priority" | "due" | "hours";
+
+const SORT_ACCESSORS: Record<SortKey, (t: TaskSummary) => string | number> = {
+  title: (t) => t.title.toLowerCase(),
+  project: (t) => t.project?.name?.toLowerCase() ?? "",
+  assignee: (t) => t.assignee?.fullName?.toLowerCase() ?? "",
+  status: (t) => t.status,
+  priority: (t) => PRIORITY_RANK[t.priority] ?? 0,
+  due: (t) => (t.dueDate ? new Date(t.dueDate).getTime() : -Infinity),
+  hours: (t) => t.actualHours,
+};
+
+function SortableHeader({
+  label,
+  sortKey,
+  activeSort,
+  onSort,
+}: {
+  label: string;
+  sortKey: SortKey;
+  activeSort: { key: SortKey; dir: "asc" | "desc" } | null;
+  onSort: (key: SortKey) => void;
+}) {
+  const isActive = activeSort?.key === sortKey;
+  const Icon = isActive ? (activeSort.dir === "asc" ? ArrowUp : ArrowDown) : ArrowUpDown;
+  return (
+    <th>
+      <button
+        type="button"
+        onClick={() => onSort(sortKey)}
+        className={`flex items-center gap-1 text-xs font-semibold uppercase tracking-wide ${isActive ? "text-text" : "text-text-muted"}`}
+      >
+        {label}
+        <Icon size={13} />
+      </button>
+    </th>
+  );
+}
 
 export function TasksPage() {
   const user = useAuthStore((s) => s.user);
@@ -19,8 +60,13 @@ export function TasksPage() {
   const [filters, setFilters] = useState({ projectId: "", status: "", priority: "", assigneeId: "" });
   const [duePreset, setDuePreset] = useState<DuePreset>("all");
   const [dueRange, setDueRange] = useState<DateRange>({ start: "", end: "" });
+  const [sort, setSort] = useState<{ key: SortKey; dir: "asc" | "desc" } | null>(null);
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+
+  function toggleSort(key: SortKey) {
+    setSort((s) => (s?.key === key ? { key, dir: s.dir === "asc" ? "desc" : "asc" } : { key, dir: "asc" }));
+  }
 
   const allFilters = {
     ...filters,
@@ -40,6 +86,20 @@ export function TasksPage() {
     queryKey: ["employees"],
     queryFn: () => api.get<{ employees: EmployeeSummary[] }>("/api/employees"),
   });
+
+  const sortedTasks = useMemo(() => {
+    const tasks = data?.tasks ?? [];
+    if (!sort) return tasks;
+    const accessor = SORT_ACCESSORS[sort.key];
+    const sorted = [...tasks].sort((a, b) => {
+      const av = accessor(a);
+      const bv = accessor(b);
+      if (av < bv) return -1;
+      if (av > bv) return 1;
+      return 0;
+    });
+    return sort.dir === "desc" ? sorted.reverse() : sorted;
+  }, [data, sort]);
 
   const {
     register,
@@ -275,17 +335,17 @@ export function TasksPage() {
         <Table>
           <thead>
             <tr>
-              <th>Title</th>
-              <th>Project</th>
-              <th>Assignee</th>
-              <th>Status</th>
-              <th>Priority</th>
-              <th>Due</th>
-              <th>Hours (act/est)</th>
+              <SortableHeader label="Title" sortKey="title" activeSort={sort} onSort={toggleSort} />
+              <SortableHeader label="Project" sortKey="project" activeSort={sort} onSort={toggleSort} />
+              <SortableHeader label="Assignee" sortKey="assignee" activeSort={sort} onSort={toggleSort} />
+              <SortableHeader label="Status" sortKey="status" activeSort={sort} onSort={toggleSort} />
+              <SortableHeader label="Priority" sortKey="priority" activeSort={sort} onSort={toggleSort} />
+              <SortableHeader label="Due" sortKey="due" activeSort={sort} onSort={toggleSort} />
+              <SortableHeader label="Hours (act/est)" sortKey="hours" activeSort={sort} onSort={toggleSort} />
             </tr>
           </thead>
           <tbody>
-            {data?.tasks.map((t) => (
+            {sortedTasks.map((t) => (
               <tr key={t.id} onClick={() => navigate(`/tasks/${t.id}`)} className="cursor-pointer hover:bg-surface-hover">
                 <td>{t.title}</td>
                 <td>{t.project?.name ?? "-"}</td>
@@ -296,7 +356,7 @@ export function TasksPage() {
                 <td>{t.actualHours}/{t.estimatedHours ?? "-"}</td>
               </tr>
             ))}
-            {data?.tasks.length === 0 && (
+            {sortedTasks.length === 0 && (
               <tr><td colSpan={7} className="text-text-muted">No tasks match these filters.</td></tr>
             )}
           </tbody>
