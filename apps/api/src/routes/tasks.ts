@@ -68,6 +68,8 @@ export async function taskRoutes(app: FastifyInstance) {
       status?: TaskStatus;
       priority?: Priority;
       assigneeId?: string;
+      dueStart?: string;
+      dueEnd?: string;
       page?: string;
       pageSize?: string;
     };
@@ -80,6 +82,14 @@ export async function taskRoutes(app: FastifyInstance) {
       ...(q.status ? { status: q.status } : {}),
       ...(q.priority ? { priority: q.priority } : {}),
       ...(q.assigneeId ? { assigneeId: q.assigneeId } : {}),
+      ...(q.dueStart || q.dueEnd
+        ? {
+            dueDate: {
+              ...(q.dueStart ? { gte: new Date(q.dueStart) } : {}),
+              ...(q.dueEnd ? { lte: new Date(q.dueEnd) } : {}),
+            },
+          }
+        : {}),
       ...(isScopedToOwnTasks ? { assigneeId: req.user!.employeeId ?? "__none__" } : {}),
     };
     const take = Math.min(Math.max(Number(q.pageSize) || 50, 1), 200);

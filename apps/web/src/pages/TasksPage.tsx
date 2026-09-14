@@ -2,24 +2,33 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { CreateTaskSchema, TASK_STATUSES, TASK_PRIORITIES, type CreateTaskInput } from "@office/validation";
-import { Button, Input, Table, Badge, DatePicker } from "@office/ui";
+import { Button, Input, Table, Badge, DatePicker, DateRangePicker, type DateRange, type DateRangePreset } from "@office/ui";
 import { api } from "../lib/api";
 import { useAuthStore } from "../store/authStore";
 import type { TaskSummary, ProjectSummary, EmployeeSummary } from "@office/shared";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
+type DuePreset = DateRangePreset | "all";
+
 export function TasksPage() {
   const user = useAuthStore((s) => s.user);
   const canCreate = user?.permissions.includes("tasks.create");
   const [showForm, setShowForm] = useState(false);
   const [filters, setFilters] = useState({ projectId: "", status: "", priority: "", assigneeId: "" });
+  const [duePreset, setDuePreset] = useState<DuePreset>("all");
+  const [dueRange, setDueRange] = useState<DateRange>({ start: "", end: "" });
   const queryClient = useQueryClient();
   const navigate = useNavigate();
 
-  const params = new URLSearchParams(Object.entries(filters).filter(([, v]) => v));
+  const allFilters = {
+    ...filters,
+    dueStart: duePreset === "all" ? "" : dueRange.start,
+    dueEnd: duePreset === "all" ? "" : dueRange.end,
+  };
+  const params = new URLSearchParams(Object.entries(allFilters).filter(([, v]) => v));
   const { data, isLoading } = useQuery({
-    queryKey: ["tasks", filters],
+    queryKey: ["tasks", allFilters],
     queryFn: () => api.get<{ tasks: TaskSummary[] }>(`/api/tasks?${params.toString()}`),
   });
   const { data: projectData } = useQuery({
@@ -104,6 +113,30 @@ export function TasksPage() {
             <option key={e.id} value={e.id}>{e.fullName}</option>
           ))}
         </select>
+      </div>
+
+      <div className="mb-6">
+        <label className="mb-1 block text-sm font-medium">Due Date</label>
+        <div className="flex flex-wrap items-start gap-2">
+          <button
+            type="button"
+            className={`op-date-range-picker__preset ${duePreset === "all" ? "op-date-range-picker__preset--active" : ""}`}
+            onClick={() => {
+              setDuePreset("all");
+              setDueRange({ start: "", end: "" });
+            }}
+          >
+            All Time
+          </button>
+          <DateRangePicker
+            value={dueRange}
+            preset={duePreset === "all" ? ("all" as unknown as DateRangePreset) : duePreset}
+            onChange={(range, preset) => {
+              setDueRange(range);
+              setDuePreset(preset);
+            }}
+          />
+        </div>
       </div>
 
       {showForm && canCreate && (
