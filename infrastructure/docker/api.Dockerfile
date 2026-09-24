@@ -8,6 +8,6 @@ COPY packages/config/package.json packages/config/package.json
 RUN npm install
 COPY . .
 RUN npx prisma generate --schema=prisma/schema.prisma
-RUN npm run build --workspace=apps/api
+RUN npx turbo run build --filter=@office/api
 EXPOSE 4000
 CMD ["node", "apps/api/dist/index.js"]
