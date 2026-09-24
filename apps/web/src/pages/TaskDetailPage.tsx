@@ -188,18 +188,27 @@ export function TaskDetailPage() {
 
       <div className="mb-6 rounded-lg border border-border bg-surface p-6">
         <h2 className="mb-3 text-lg font-semibold">Work Logs (Time Entries)</h2>
-        <ul className="mb-3 space-y-2">
+        <ul className="mb-4 space-y-2">
           {task.timeEntries.map((entry) => (
-            <li key={entry.id} className="text-sm">
-              <span className="font-medium">{entry.employee?.fullName ?? "-"}</span> logged {entry.hours}h on{" "}
-              {new Date(entry.date).toLocaleDateString()}
-              {entry.description && <span className="text-text-muted"> — {entry.description}</span>}
+            <li key={entry.id} className="flex items-start gap-3 rounded-md border border-border/60 bg-background/40 px-3 py-2.5">
+              <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/15 text-xs font-semibold text-primary">
+                {(entry.employee?.fullName ?? "?").charAt(0).toUpperCase()}
+              </div>
+              <div className="min-w-0 flex-1 text-sm">
+                <div className="flex flex-wrap items-baseline gap-x-1.5">
+                  <span className="font-medium">{entry.employee?.fullName ?? "-"}</span>
+                  <span className="text-text-muted">logged</span>
+                  <Badge variant="default">{entry.hours}h</Badge>
+                  <span className="text-text-muted">on {new Date(entry.date).toLocaleDateString()}</span>
+                </div>
+                {entry.description && <p className="mt-1 text-text-muted">{entry.description}</p>}
+              </div>
             </li>
           ))}
           {task.timeEntries.length === 0 && <p className="text-sm text-text-muted">No time logged yet.</p>}
         </ul>
         {canLogTime && (
-          <div className="flex flex-wrap items-end gap-2">
+          <div className="flex flex-wrap items-end gap-2 rounded-md border border-dashed border-border/70 p-3">
             <div>
               <label className="mb-1 block text-xs text-text-muted">Date</label>
               <DatePicker value={timeEntryDate} onChange={setTimeEntryDate} />
@@ -213,7 +222,7 @@ export function TaskDetailPage() {
               <Input value={timeEntryDesc} onChange={(e) => setTimeEntryDesc(e.target.value)} />
             </div>
             <Button disabled={!timeEntryHours || timeEntryMutation.isPending} onClick={() => timeEntryMutation.mutate()}>
-              Log Time
+              {timeEntryMutation.isPending ? "Logging..." : "Log Time"}
             </Button>
           </div>
         )}
@@ -221,12 +230,19 @@ export function TaskDetailPage() {
 
       <div className="rounded-lg border border-border bg-surface p-6">
         <h2 className="mb-3 text-lg font-semibold">Comments</h2>
-        <ul className="mb-3 space-y-3">
+        <ul className="mb-4 space-y-2">
           {task.comments.map((c) => (
-            <li key={c.id} className="text-sm">
-              <span className="font-medium">{c.author?.email ?? "-"}</span>{" "}
-              <span className="text-text-muted">{new Date(c.createdAt).toLocaleString()}</span>
-              <p>{c.content}</p>
+            <li key={c.id} className="flex items-start gap-3 rounded-md border border-border/60 bg-background/40 px-3 py-2.5">
+              <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/15 text-xs font-semibold text-primary">
+                {(c.author?.email ?? "?").charAt(0).toUpperCase()}
+              </div>
+              <div className="min-w-0 flex-1 text-sm">
+                <div className="flex flex-wrap items-baseline gap-x-2">
+                  <span className="font-medium">{c.author?.email ?? "-"}</span>
+                  <span className="text-xs text-text-muted">{relativeTime(c.createdAt)}</span>
+                </div>
+                <p className="mt-1 whitespace-pre-wrap">{c.content}</p>
+              </div>
             </li>
           ))}
           {task.comments.length === 0 && <p className="text-sm text-text-muted">No comments yet.</p>}
@@ -234,24 +250,29 @@ export function TaskDetailPage() {
         <div className="flex gap-2">
           <Input placeholder="Add a comment" value={commentText} onChange={(e) => setCommentText(e.target.value)} />
           <Button disabled={!commentText || commentMutation.isPending} onClick={() => commentMutation.mutate()}>
-            Comment
+            {commentMutation.isPending ? "Posting..." : "Comment"}
           </Button>
         </div>
       </div>
 
       <div className="mt-6 rounded-lg border border-border bg-surface p-6">
         <h2 className="mb-3 text-lg font-semibold">Attachments</h2>
-        <ul className="mb-3 space-y-2">
+        <ul className="mb-4 space-y-2">
           {task.attachments.map((a) => (
-            <li key={a.id} className="flex items-center justify-between text-sm">
-              <div>
-                <span className="font-medium">{a.fileName}</span>{" "}
-                <span className="text-text-muted">
-                  ({formatFileSize(a.fileSize)} · uploaded by {a.uploadedBy?.email ?? "-"} · {relativeTime(a.createdAt)})
-                </span>
+            <li key={a.id} className="flex items-center justify-between gap-3 rounded-md border border-border/60 bg-background/40 px-3 py-2.5 text-sm">
+              <div className="flex min-w-0 items-center gap-3">
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/15 text-xs font-semibold text-primary">
+                  📎
+                </div>
+                <div className="min-w-0">
+                  <p className="truncate font-medium">{a.fileName}</p>
+                  <p className="text-xs text-text-muted">
+                    {formatFileSize(a.fileSize)} · uploaded by {a.uploadedBy?.email ?? "-"} · {relativeTime(a.createdAt)}
+                  </p>
+                </div>
               </div>
               <button
-                className="text-primary hover:underline disabled:opacity-50"
+                className="shrink-0 text-primary hover:underline disabled:opacity-50"
                 disabled={downloadingId === a.id}
                 onClick={async () => {
                   setDownloadingId(a.id);
@@ -262,7 +283,7 @@ export function TaskDetailPage() {
                   }
                 }}
               >
-                Download
+                {downloadingId === a.id ? "Downloading..." : "Download"}
               </button>
             </li>
           ))}
@@ -288,15 +309,18 @@ export function TaskDetailPage() {
 
       <div className="mt-6 rounded-lg border border-border bg-surface p-6">
         <h2 className="mb-3 text-lg font-semibold">Activity</h2>
-        <ul className="space-y-3">
+        <ul className="space-y-2">
           {task.activities.map((a) => (
-            <li key={a.id} className="text-sm">
-              <span className="font-medium">{a.actor?.email ?? "-"}</span>{" "}
-              <span>{ACTIVITY_LABEL[a.action] ?? a.action}</span>
-              {a.fromValue !== undefined && a.toValue !== undefined && a.action === "status_changed" && (
-                <span className="text-text-muted"> ({a.fromValue ?? "-"} to {a.toValue ?? "-"})</span>
-              )}
-              <span className="ml-2 text-text-muted">{relativeTime(a.createdAt)}</span>
+            <li key={a.id} className="flex items-start gap-3 rounded-md border border-border/60 bg-background/40 px-3 py-2.5 text-sm">
+              <div className="mt-0.5 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
+              <div className="min-w-0 flex-1">
+                <span className="font-medium">{a.actor?.email ?? "-"}</span>{" "}
+                <span className="text-text-muted">{ACTIVITY_LABEL[a.action] ?? a.action}</span>
+                {a.fromValue !== undefined && a.toValue !== undefined && a.action === "status_changed" && (
+                  <span className="text-text-muted"> ({a.fromValue ?? "-"} to {a.toValue ?? "-"})</span>
+                )}
+              </div>
+              <span className="shrink-0 text-xs text-text-muted">{relativeTime(a.createdAt)}</span>
             </li>
           ))}
           {task.activities.length === 0 && <p className="text-sm text-text-muted">No activity yet.</p>}
