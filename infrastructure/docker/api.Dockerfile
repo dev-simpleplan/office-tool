@@ -7,6 +7,7 @@ COPY packages/validation/package.json packages/validation/package.json
 COPY packages/config/package.json packages/config/package.json
 RUN npm install
 COPY . .
+RUN npx prisma generate --schema=prisma/schema.prisma
 RUN npm run build --workspace=apps/api
 EXPOSE 4000
 CMD ["node", "apps/api/dist/index.js"]
