@@ -3,8 +3,19 @@ import argon2 from "argon2";
 import { LoginSchema, ChangePasswordSchema } from "@office/validation";
 import { prisma } from "../lib/prisma.js";
 import { createSession, destroySession } from "../lib/session.js";
+import { env } from "../lib/env.js";
 
 const COOKIE_NAME = "op_session";
+
+// The web app and API can be deployed on entirely different sites (e.g. a
+// Vercel domain talking to a VPS-hosted API), so SameSite=Lax — which
+// browsers never attach on cross-site fetch/XHR regardless of method — would
+// silently drop the session cookie on every request after login. SameSite=None
+// is required for that topology, and browsers mandate Secure alongside it.
+// NODE_ENV isn't a reliable production signal here (never set in the Docker
+// container), so derive both from whether the API is actually served over
+// HTTPS.
+const IS_HTTPS_API = env.API_URL.startsWith("https://");
 
 export async function authRoutes(app: FastifyInstance) {
   app.post(
@@ -39,8 +50,8 @@ export async function authRoutes(app: FastifyInstance) {
     const session = await createSession(user.id);
     reply.setCookie(COOKIE_NAME, session.id, {
       httpOnly: true,
-      sameSite: "lax",
-      secure: process.env.NODE_ENV === "production",
+      sameSite: IS_HTTPS_API ? "none" : "lax",
+      secure: IS_HTTPS_API,
       path: "/",
       expires: session.expiresAt,
     });
@@ -53,7 +64,11 @@ export async function authRoutes(app: FastifyInstance) {
     if (sessionId) {
       await destroySession(sessionId);
     }
-    reply.clearCookie(COOKIE_NAME, { path: "/" });
+    reply.clearCookie(COOKIE_NAME, {
+      path: "/",
+      sameSite: IS_HTTPS_API ? "none" : "lax",
+      secure: IS_HTTPS_API,
+    });
     return reply.send({ ok: true });
   });
 

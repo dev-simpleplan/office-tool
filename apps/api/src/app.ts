@@ -24,11 +24,14 @@ import { searchRoutes } from "./routes/search.js";
 export async function buildApp(opts: { logger?: boolean } = {}) {
   const app = Fastify({ logger: opts.logger ?? true });
 
-  // CSRF: the session cookie is set with SameSite=Lax, so browsers withhold it on
-  // cross-site subresource/XHR requests initiated by third-party pages (only
-  // top-level nav GETs carry it). Combined with the CORS allowlist below (only
-  // WEB_URL may read responses via fetch with credentials), a third-party site
-  // cannot both send the cookie and read the response, so no CSRF token is needed.
+  // CSRF: the session cookie may be SameSite=None (required when the web app and
+  // API are on different sites, e.g. Vercel + a VPS-hosted API — see
+  // routes/auth.ts), so it's no longer withheld from cross-site requests on its
+  // own. Protection instead comes from the CORS allowlist below: every mutating
+  // route requires a JSON body, which forces the browser to send a CORS
+  // preflight first, and only WEB_URL is allowed through it with credentials —
+  // so a third-party page's request never completes, whether or not it could
+  // read the response.
   await app.register(cors, {
     origin: [env.WEB_URL],
     credentials: true,
