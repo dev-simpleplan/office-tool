@@ -11,6 +11,7 @@ export interface DatePickerProps {
 }
 
 const WEEKDAYS = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"];
+const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
 function parseISO(s: string): Date | null {
   if (!s) return null;
@@ -56,6 +57,14 @@ export function DatePicker({ value, onChange, min, max, placeholder, disabled, i
   const minDate = min ? parseISO(min) : null;
   const maxDate = max ? parseISO(max) : null;
 
+  // Year dropdown spans min/max when given, otherwise 100 years back to 10 ahead
+  // (birth dates and hire dates are the common far-from-today picks), always
+  // including the year currently in view.
+  const thisYear = new Date().getFullYear();
+  const lastYear = Math.max(maxDate ? maxDate.getFullYear() : thisYear + 10, viewMonth.getFullYear());
+  const firstYear = Math.min(minDate ? minDate.getFullYear() : thisYear - 100, viewMonth.getFullYear());
+  const years = Array.from({ length: lastYear - firstYear + 1 }, (_, i) => lastYear - i);
+
   const firstOfMonth = new Date(viewMonth.getFullYear(), viewMonth.getMonth(), 1);
   const startOffset = (firstOfMonth.getDay() + 6) % 7; // Monday-first
   const daysInMonth = new Date(viewMonth.getFullYear(), viewMonth.getMonth() + 1, 0).getDate();
@@ -99,7 +108,30 @@ export function DatePicker({ value, onChange, min, max, placeholder, disabled, i
               &lsaquo;
             </button>
             <span className="op-datepicker__month-label">
-              {viewMonth.toLocaleDateString(undefined, { month: "long", year: "numeric" })}
+              <select
+                className="op-datepicker__select"
+                aria-label="Month"
+                value={viewMonth.getMonth()}
+                onChange={(e) => setViewMonth(new Date(viewMonth.getFullYear(), Number(e.target.value), 1))}
+              >
+                {MONTHS.map((m, i) => (
+                  <option key={m} value={i}>
+                    {m}
+                  </option>
+                ))}
+              </select>
+              <select
+                className="op-datepicker__select"
+                aria-label="Year"
+                value={viewMonth.getFullYear()}
+                onChange={(e) => setViewMonth(new Date(Number(e.target.value), viewMonth.getMonth(), 1))}
+              >
+                {years.map((y) => (
+                  <option key={y} value={y}>
+                    {y}
+                  </option>
+                ))}
+              </select>
             </span>
             <button
               type="button"

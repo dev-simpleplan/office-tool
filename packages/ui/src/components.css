@@ -240,9 +240,23 @@ textarea:focus-visible,
   margin-bottom: 0.5rem;
 }
 .op-datepicker__month-label {
+  display: flex;
+  gap: 0.375rem;
   font-size: 0.85rem;
   font-weight: 600;
   color: var(--color-text);
+}
+.op-datepicker__select {
+  padding: 0.25rem 0.375rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  cursor: pointer;
+}
+.op-datepicker__select:hover {
+  background: var(--color-surface-hover);
 }
 .op-datepicker__nav {
   width: 1.75rem;
