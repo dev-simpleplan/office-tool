@@ -62,6 +62,17 @@ const EXT_BY_TYPE: Record<string, string> = {
   "image/webp": "webp",
 };
 
+/** Role for a login being created. Anything above EMPLOYEE needs roles.assign. */
+async function roleForNewLogin(user: { permissions: string[] }, requested: string | undefined) {
+  const name = requested ?? "EMPLOYEE";
+  if (name !== "EMPLOYEE" && !user.permissions.includes("roles.assign")) {
+    return { ok: false, status: 403, error: "forbidden" } as const;
+  }
+  const role = await prisma.role.findUnique({ where: { name } });
+  if (!role) return { ok: false, status: 500, error: "role_not_seeded" } as const;
+  return { ok: true, role } as const;
+}
+
 export async function employeeRoutes(app: FastifyInstance) {
   app.get("/", { preHandler: app.requirePermission("employees.view") }, async (req, reply) => {
     const canViewSalary = req.user!.permissions.includes("salary.view");
@@ -162,13 +173,13 @@ export async function employeeRoutes(app: FastifyInstance) {
       if (!data.password) {
         return reply.code(400).send({ error: "password_required_for_login" });
       }
-      const employeeRole = await prisma.role.findUnique({ where: { name: "EMPLOYEE" } });
-      if (!employeeRole) {
-        return reply.code(500).send({ error: "role_not_seeded" });
+      const chosen = await roleForNewLogin(req.user!, data.role);
+      if (!chosen.ok) {
+        return reply.code(chosen.status).send({ error: chosen.error });
       }
       const passwordHash = await argon2.hash(data.password);
       const user = await prisma.user.create({
-        data: { email: data.email, passwordHash, roleId: employeeRole.id },
+        data: { email: data.email, passwordHash, roleId: chosen.role.id },
       });
       userId = user.id;
     }
@@ -232,13 +243,13 @@ export async function employeeRoutes(app: FastifyInstance) {
     if (existingUser) {
       return reply.code(409).send({ error: "email_already_has_account" });
     }
-    const employeeRole = await prisma.role.findUnique({ where: { name: "EMPLOYEE" } });
-    if (!employeeRole) {
-      return reply.code(500).send({ error: "role_not_seeded" });
+    const chosen = await roleForNewLogin(req.user!, parsed.data.role);
+    if (!chosen.ok) {
+      return reply.code(chosen.status).send({ error: chosen.error });
     }
     const passwordHash = await argon2.hash(parsed.data.password);
     const user = await prisma.user.create({
-      data: { email: employee.email, passwordHash, roleId: employeeRole.id },
+      data: { email: employee.email, passwordHash, roleId: chosen.role.id },
     });
     await prisma.employee.update({ where: { id }, data: { userId: user.id } });
     return reply.code(201).send({ ok: true });

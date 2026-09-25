@@ -556,6 +556,20 @@ export function EmployeeDetailPage() {
                       <p className="mt-1 text-xs text-danger">{loginErrors.password.message}</p>
                     )}
                     {loginError && <p className="mt-1 text-xs text-danger">{loginError}</p>}
+                    {canAssignRoles && (
+                      <select
+                        className="op-input mt-2"
+                        defaultValue="EMPLOYEE"
+                        aria-label="Role for the new login"
+                        {...registerLogin("role")}
+                      >
+                        {ASSIGNABLE_ROLES.map((r) => (
+                          <option key={r} value={r}>
+                            {ROLE_LABEL[r]}
+                          </option>
+                        ))}
+                      </select>
+                    )}
                   </div>
                   <Button type="submit" disabled={isSubmittingLogin || createLoginMutation.isPending}>
                     Create

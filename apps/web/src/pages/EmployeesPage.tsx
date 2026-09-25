@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { CreateEmployeeSchema, type CreateEmployeeInput } from "@office/validation";
+import { CreateEmployeeSchema, ASSIGNABLE_ROLES, type CreateEmployeeInput } from "@office/validation";
 import { Button, Input, Table, Badge, DatePicker } from "@office/ui";
 import { api } from "../lib/api";
 import { useAuthStore } from "../store/authStore";
@@ -9,6 +9,8 @@ import type { EmployeeSummary, DepartmentSummary, TeamSummary, WorkScheduleSumma
 import { useState } from "react";
 import { formatINR } from "../lib/currency";
 import { useNavigate } from "react-router-dom";
+
+const ROLE_LABEL: Record<string, string> = { ADMIN: "Admin", TEAM_LEAD: "Team Lead", EMPLOYEE: "Employee" };
 
 export function EmployeesPage() {
   const navigate = useNavigate();
@@ -47,6 +49,8 @@ export function EmployeesPage() {
     formState: { errors, isSubmitting },
   } = useForm<CreateEmployeeInput>({ resolver: zodResolver(CreateEmployeeSchema) });
   const createLogin = watch("createLogin");
+  const canAssignRoles = useAuthStore((s) => s.user?.permissions.includes("roles.assign"));
+  const chosenRole = watch("role");
 
   const createMutation = useMutation({
     mutationFn: (input: CreateEmployeeInput) => api.post("/api/employees", input),
@@ -160,6 +164,25 @@ export function EmployeesPage() {
                   immediately (there is no separate invite email yet).
                 </p>
                 {errors.password && <p className="mt-1 text-xs text-danger">{errors.password.message}</p>}
+                {canAssignRoles && (
+                  <div className="mt-3">
+                    <label htmlFor="employee-role" className="mb-1 block text-sm font-medium">
+                      Role
+                    </label>
+                    <select id="employee-role" className="op-input" defaultValue="EMPLOYEE" {...register("role")}>
+                      {ASSIGNABLE_ROLES.map((r) => (
+                        <option key={r} value={r}>
+                          {ROLE_LABEL[r]}
+                        </option>
+                      ))}
+                    </select>
+                    {chosenRole === "ADMIN" && (
+                      <p className="mt-1 text-xs text-danger">
+                        Admins can see salaries, manage every record, and permanently delete data.
+                      </p>
+                    )}
+                  </div>
+                )}
               </div>
             )}
           </div>

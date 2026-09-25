@@ -1,6 +1,8 @@
 import { z } from "zod";
 import { optionalUuid } from "./common.js";
 
+export const ASSIGNABLE_ROLES = ["ADMIN", "TEAM_LEAD", "EMPLOYEE"] as const;
+
 export const CreateEmployeeSchema = z.object({
   fullName: z.string().min(1).max(200),
   jobTitle: z.string().min(1).max(200),
@@ -10,6 +12,7 @@ export const CreateEmployeeSchema = z.object({
   salary: z.number().positive().optional(),
   createLogin: z.boolean().optional().default(false),
   password: z.string().min(8).optional(),
+  role: z.enum(ASSIGNABLE_ROLES).optional(),
   departmentId: optionalUuid(),
   teamId: optionalUuid(),
   scheduleId: optionalUuid(),
@@ -30,6 +33,7 @@ export type UpdateEmployeeInput = z.infer<typeof UpdateEmployeeSchema>;
 
 export const CreateLoginSchema = z.object({
   password: z.string().min(8),
+  role: z.enum(ASSIGNABLE_ROLES).optional(),
 });
 export type CreateLoginInput = z.infer<typeof CreateLoginSchema>;
 
@@ -42,8 +46,6 @@ export const CreateLeaveRequestSchema = z.object({
   notes: z.string().max(1000).optional(),
 });
 export type CreateLeaveRequestInput = z.infer<typeof CreateLeaveRequestSchema>;
-
-export const ASSIGNABLE_ROLES = ["ADMIN", "TEAM_LEAD", "EMPLOYEE"] as const;
 
 export const UpdateRoleSchema = z.object({
   role: z.enum(ASSIGNABLE_ROLES),
