@@ -183,7 +183,7 @@ export function ProjectsPage() {
             </select>
           </div>
           <div>
-            <label className="mb-1 block text-sm font-medium">Budget</label>
+            <label className="mb-1 block text-sm font-medium">Budget (₹)</label>
             <Input type="number" step="0.01" {...register("budget")} />
           </div>
           <div>

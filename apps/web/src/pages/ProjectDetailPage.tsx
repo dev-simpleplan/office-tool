@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useParams, useNavigate } from "react-router-dom";
 import { Badge, Table } from "@office/ui";
 import { api } from "../lib/api";
+import { formatINR } from "../lib/currency";
 import type { ProjectDetail } from "@office/shared";
 
 export function ProjectDetailPage() {
@@ -34,7 +35,7 @@ export function ProjectDetailPage() {
         <div><p className="text-xs text-text-muted">Team</p><p>{project.team?.name ?? "-"}</p></div>
         <div><p className="text-xs text-text-muted">Project Lead</p><p>{project.projectLead?.fullName ?? "-"}</p></div>
         <div><p className="text-xs text-text-muted">Priority</p><p>{project.priority}</p></div>
-        <div><p className="text-xs text-text-muted">Budget</p><p>{project.budget != null ? `$${project.budget.toLocaleString()}` : "-"}</p></div>
+        <div><p className="text-xs text-text-muted">Budget</p><p>{project.budget != null ? formatINR(project.budget) : "-"}</p></div>
         <div><p className="text-xs text-text-muted">Start Date</p><p>{project.startDate ? new Date(project.startDate).toLocaleDateString() : "-"}</p></div>
         <div><p className="text-xs text-text-muted">End Date</p><p>{project.endDate ? new Date(project.endDate).toLocaleDateString() : "-"}</p></div>
         <div><p className="text-xs text-text-muted">Progress</p><p>{progress}% ({project.completedTaskCount}/{project.taskCount} tasks)</p></div>

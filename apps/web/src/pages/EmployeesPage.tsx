@@ -7,6 +7,7 @@ import { api } from "../lib/api";
 import { useAuthStore } from "../store/authStore";
 import type { EmployeeSummary, DepartmentSummary, TeamSummary, WorkScheduleSummary } from "@office/shared";
 import { useState } from "react";
+import { formatINR } from "../lib/currency";
 import { useNavigate } from "react-router-dom";
 
 export function EmployeesPage() {
@@ -106,7 +107,7 @@ export function EmployeesPage() {
           </div>
           {canViewSalary && (
             <div>
-              <label htmlFor="employee-salary" className="mb-1 block text-sm font-medium">Salary</label>
+              <label htmlFor="employee-salary" className="mb-1 block text-sm font-medium">Salary (₹)</label>
               <Input id="employee-salary" type="number" step="0.01" {...register("salary", { valueAsNumber: true })} />
             </div>
           )}
@@ -203,7 +204,7 @@ export function EmployeesPage() {
                 <td>
                   <Badge variant={e.status === "ACTIVE" ? "success" : "warning"}>{e.status}</Badge>
                 </td>
-                {canViewSalary && <td>{e.salary != null ? `$${e.salary}` : "-"}</td>}
+                {canViewSalary && <td>{e.salary != null ? formatINR(e.salary) : "-"}</td>}
               </tr>
             ))}
           </tbody>

@@ -16,6 +16,7 @@ import {
   ASSIGNABLE_ROLES,
 } from "@office/validation";
 import { api, ApiError } from "../lib/api";
+import { formatINR } from "../lib/currency";
 import { useAuthStore } from "../store/authStore";
 import { useEmployeePhoto } from "../lib/useEmployeePhoto";
 import type {
@@ -404,7 +405,7 @@ export function EmployeeDetailPage() {
           </div>
           {canViewSalary && (
             <div>
-              <label className="mb-1 block text-sm font-medium">Salary</label>
+              <label className="mb-1 block text-sm font-medium">Salary (₹)</label>
               <Input type="number" step="0.01" {...register("salary", { valueAsNumber: true })} />
             </div>
           )}
@@ -475,18 +476,18 @@ export function EmployeeDetailPage() {
             <Field label="Team" value={e.team?.name ?? "Unassigned"} />
             <Field label="Work Schedule" value={e.schedule?.name ?? "Unassigned"} />
             {e.startingSalary != null && (
-              <Field label="Starting Salary" value={`$${e.startingSalary}`} />
+              <Field label="Starting Salary" value={formatINR(e.startingSalary)} />
             )}
             {e.salary != null && (
               <Field
                 label="Current Salary"
                 value={
                   e.startingSalary != null && e.startingSalary > 0
-                    ? `$${e.salary} (${e.salary >= e.startingSalary ? "+" : ""}${(
+                    ? `${formatINR(e.salary)} (${e.salary >= e.startingSalary ? "+" : ""}${(
                         ((e.salary - e.startingSalary) / e.startingSalary) *
                         100
                       ).toFixed(1)}%)`
-                    : `$${e.salary}`
+                    : formatINR(e.salary)
                 }
               />
             )}
