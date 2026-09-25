@@ -92,4 +92,12 @@ export async function teamRoutes(app: FastifyInstance) {
     const team = await prisma.team.update({ where: { id }, data: { status: "ARCHIVED" }, include: teamInclude });
     return reply.send({ team: serializeTeam(team) });
   });
+
+  app.delete("/:id", { preHandler: app.requirePermission("teams.delete") }, async (req, reply) => {
+    const { id } = req.params as { id: string };
+    const existing = await prisma.team.findUnique({ where: { id }, select: { id: true } });
+    if (!existing) return reply.code(404).send({ error: "not_found" });
+    await prisma.team.delete({ where: { id } });
+    return reply.send({ ok: true });
+  });
 }

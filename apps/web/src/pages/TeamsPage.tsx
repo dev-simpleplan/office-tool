@@ -13,9 +13,11 @@ export function TeamsPage() {
   const canCreate = user?.permissions.includes("teams.create");
   const canUpdate = user?.permissions.includes("teams.update");
   const canArchive = user?.permissions.includes("teams.archive");
+  const canDelete = user?.permissions.includes("teams.delete");
   const [showForm, setShowForm] = useState(false);
   const [editingTeam, setEditingTeam] = useState<TeamSummary | null>(null);
   const [archiveTarget, setArchiveTarget] = useState<TeamSummary | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<TeamSummary | null>(null);
   const queryClient = useQueryClient();
 
   const { data, isLoading } = useQuery({
@@ -86,6 +88,15 @@ export function TeamsPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["teams"] });
       setArchiveTarget(null);
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => api.delete(`/api/teams/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["teams"] });
+      queryClient.invalidateQueries({ queryKey: ["employees"] });
+      setDeleteTarget(null);
     },
   });
 
@@ -186,7 +197,7 @@ export function TeamsPage() {
               <th>Team Lead</th>
               <th>Members</th>
               <th>Status</th>
-              {canArchive && <th>Actions</th>}
+              {(canArchive || canDelete) && <th>Actions</th>}
             </tr>
           </thead>
           <tbody>
@@ -203,19 +214,33 @@ export function TeamsPage() {
                 <td>
                   <Badge variant={t.status === "ACTIVE" ? "success" : "warning"}>{t.status}</Badge>
                 </td>
-                {canArchive && (
+                {(canArchive || canDelete) && (
                   <td>
-                    {t.status === "ACTIVE" && (
-                      <Button
-                        variant="ghost"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setArchiveTarget(t);
-                        }}
-                      >
-                        Archive
-                      </Button>
-                    )}
+                    <div className="flex gap-2">
+                      {canArchive && t.status === "ACTIVE" && (
+                        <Button
+                          variant="ghost"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setArchiveTarget(t);
+                          }}
+                        >
+                          Archive
+                        </Button>
+                      )}
+                      {canDelete && (
+                        <Button
+                          variant="ghost"
+                          className="text-danger"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setDeleteTarget(t);
+                          }}
+                        >
+                          Delete
+                        </Button>
+                      )}
+                    </div>
                   </td>
                 )}
               </tr>
@@ -232,6 +257,17 @@ export function TeamsPage() {
         pending={archiveMutation.isPending}
         onConfirm={() => archiveTarget && archiveMutation.mutate(archiveTarget.id)}
         onCancel={() => setArchiveTarget(null)}
+      />
+
+      <ConfirmDialog
+        open={!!deleteTarget}
+        title="Delete Team"
+        description={`Permanently delete "${deleteTarget?.name}"? This cannot be undone. Its members, projects, and tasks are left without a team.`}
+        warning="This permanently deletes the team and cannot be undone. To just hide it, use Archive instead."
+        confirmLabel="Delete"
+        pending={deleteMutation.isPending}
+        onConfirm={() => deleteTarget && deleteMutation.mutate(deleteTarget.id)}
+        onCancel={() => setDeleteTarget(null)}
       />
     </div>
   );

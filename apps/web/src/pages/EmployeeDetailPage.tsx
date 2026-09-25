@@ -14,7 +14,7 @@ import {
   type CreateLoginInput,
   type CreateLeaveRequestInput,
 } from "@office/validation";
-import { api } from "../lib/api";
+import { api, ApiError } from "../lib/api";
 import { useAuthStore } from "../store/authStore";
 import { useEmployeePhoto } from "../lib/useEmployeePhoto";
 import type {
@@ -42,6 +42,7 @@ export function EmployeeDetailPage() {
   const user = useAuthStore((s) => s.user);
   const canUpdate = user?.permissions.includes("employees.update");
   const canArchive = user?.permissions.includes("employees.archive");
+  const canDelete = user?.permissions.includes("employees.delete");
   const canViewSalary = user?.permissions.includes("salary.view");
   const canViewAppraisals = user?.permissions.includes("appraisals.view");
   const canCreateAppraisal = user?.permissions.includes("appraisals.create");
@@ -49,6 +50,8 @@ export function EmployeeDetailPage() {
 
   const [editing, setEditing] = useState(false);
   const [confirmArchive, setConfirmArchive] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const [showAppraisalForm, setShowAppraisalForm] = useState(false);
   const [editingAppraisalId, setEditingAppraisalId] = useState<string | null>(null);
   const [deleteAppraisalId, setDeleteAppraisalId] = useState<string | null>(null);
@@ -143,6 +146,24 @@ export function EmployeeDetailPage() {
       queryClient.invalidateQueries({ queryKey: ["employees"] });
       setConfirmArchive(false);
       navigate("/employees");
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: () => api.delete(`/api/employees/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["employees"] });
+      queryClient.removeQueries({ queryKey: ["employee", id] });
+      setConfirmDelete(false);
+      navigate("/employees");
+    },
+    onError: (err) => {
+      setConfirmDelete(false);
+      setDeleteError(
+        err instanceof ApiError && (err.body as { error?: string } | null)?.error === "cannot_delete_self"
+          ? "You can't delete your own account."
+          : "Failed to delete employee.",
+      );
     },
   });
 
@@ -323,8 +344,21 @@ export function EmployeeDetailPage() {
               Archive
             </Button>
           )}
+          {canDelete && (
+            <Button
+              variant="secondary"
+              className="text-danger"
+              onClick={() => {
+                setDeleteError(null);
+                setConfirmDelete(true);
+              }}
+            >
+              Delete
+            </Button>
+          )}
         </div>
       </div>
+      {deleteError && <p className="mb-4 text-sm text-danger">{deleteError}</p>}
       {photoError && <p className="mb-4 text-sm text-danger">{photoError}</p>}
 
       {editing ? (
@@ -624,6 +658,7 @@ export function EmployeeDetailPage() {
         open={!!deleteLeaveId}
         title="Delete Leave"
         description="This will remove the leave record and recalculate the employee's leave balance."
+        warning="This permanently deletes the employee, their login, and their history, and cannot be undone. To keep their records, use Archive instead."
         confirmLabel="Delete"
         pending={deleteLeaveMutation.isPending}
         onConfirm={() => deleteLeaveId && deleteLeaveMutation.mutate(deleteLeaveId)}
@@ -768,6 +803,16 @@ export function EmployeeDetailPage() {
         pending={archiveMutation.isPending}
         onConfirm={() => archiveMutation.mutate()}
         onCancel={() => setConfirmArchive(false)}
+      />
+
+      <ConfirmDialog
+        open={confirmDelete}
+        title="Delete Employee"
+        description={`Permanently delete ${e.fullName}? This cannot be undone. Their login, appraisals, leave history, time entries, and any comments or files they added are removed. Tasks assigned to them become unassigned.`}
+        confirmLabel="Delete"
+        pending={deleteMutation.isPending}
+        onConfirm={() => deleteMutation.mutate()}
+        onCancel={() => setConfirmDelete(false)}
       />
 
       <ConfirmDialog

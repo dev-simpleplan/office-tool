@@ -122,4 +122,12 @@ export async function projectRoutes(app: FastifyInstance) {
     });
     return reply.send({ project: serializeProject(project) });
   });
+
+  app.delete("/:id", { preHandler: app.requirePermission("projects.delete") }, async (req, reply) => {
+    const { id } = req.params as { id: string };
+    const existing = await prisma.project.findUnique({ where: { id }, select: { id: true } });
+    if (!existing) return reply.code(404).send({ error: "not_found" });
+    await prisma.project.delete({ where: { id } });
+    return reply.send({ ok: true });
+  });
 }

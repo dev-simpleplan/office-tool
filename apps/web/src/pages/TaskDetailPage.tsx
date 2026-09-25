@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useParams, useNavigate } from "react-router-dom";
-import { Badge, Button, Input, DatePicker } from "@office/ui";
+import { Badge, Button, ConfirmDialog, Input, DatePicker } from "@office/ui";
 import { api } from "../lib/api";
 import { useAuthStore } from "../store/authStore";
 import type { TaskDetail } from "@office/shared";
@@ -38,6 +38,8 @@ export function TaskDetailPage() {
   const [timeEntryDate, setTimeEntryDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [timeEntryDesc, setTimeEntryDesc] = useState("");
   const [commentText, setCommentText] = useState("");
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const canDelete = user?.permissions.includes("tasks.delete");
 
   function invalidate() {
     queryClient.invalidateQueries({ queryKey: ["tasks", id] });
@@ -80,6 +82,14 @@ export function TaskDetailPage() {
       invalidate();
     },
   });
+  const deleteMutation = useMutation({
+    mutationFn: () => api.delete(`/api/tasks/${id}`),
+    onSuccess: () => {
+      queryClient.removeQueries({ queryKey: ["tasks", id] });
+      queryClient.invalidateQueries({ queryKey: ["tasks"] });
+      navigate("/tasks");
+    },
+  });
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
   const attachmentUploadMutation = useMutation({
@@ -105,10 +115,28 @@ export function TaskDetailPage() {
       </button>
       <div className="mb-6 flex items-center justify-between">
         <h1 className="text-2xl font-bold">{task.title}</h1>
-        <Badge variant={task.status === "COMPLETED" ? "success" : task.status === "BLOCKED" ? "danger" : "default"}>
-          {task.status}
-        </Badge>
+        <div className="flex items-center gap-3">
+          <Badge variant={task.status === "COMPLETED" ? "success" : task.status === "BLOCKED" ? "danger" : "default"}>
+            {task.status}
+          </Badge>
+          {canDelete && (
+            <Button variant="secondary" className="text-danger" onClick={() => setConfirmDelete(true)}>
+              Delete
+            </Button>
+          )}
+        </div>
       </div>
+
+      <ConfirmDialog
+        open={confirmDelete}
+        title="Delete Task"
+        warning="This permanently deletes the task and cannot be undone."
+        description={`Delete "${task.title}"? Its comments, checklist, time entries, attachments, and activity history are deleted with it.`}
+        confirmLabel="Delete"
+        pending={deleteMutation.isPending}
+        onConfirm={() => deleteMutation.mutate()}
+        onCancel={() => setConfirmDelete(false)}
+      />
 
       <div className="mb-6 grid grid-cols-1 gap-4 rounded-lg border border-border bg-surface p-6 sm:grid-cols-3">
         <div><p className="text-xs text-text-muted">Project</p><p>{task.project?.name ?? "Standalone"}</p></div>

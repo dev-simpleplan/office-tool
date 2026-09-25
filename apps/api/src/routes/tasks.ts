@@ -306,6 +306,16 @@ export async function taskRoutes(app: FastifyInstance) {
     return reply.send({ task: serializeTask(task) });
   });
 
+  app.delete("/:id", { preHandler: app.requirePermission("tasks.delete") }, async (req, reply) => {
+    const { id } = req.params as { id: string };
+    const task = await prisma.task.findUnique({ where: { id }, select: { id: true } });
+    if (!task) return reply.code(404).send({ error: "not_found" });
+    const attachments = await prisma.taskAttachment.findMany({ where: { taskId: id }, select: { storageKey: true } });
+    await prisma.task.delete({ where: { id } });
+    for (const a of attachments) await storage.remove(a.storageKey);
+    return reply.send({ ok: true });
+  });
+
   app.post("/:id/checklist", { preHandler: app.requirePermission("tasks.view") }, async (req, reply) => {
     const { id } = req.params as { id: string };
     const task = await prisma.task.findUnique({ where: { id } });

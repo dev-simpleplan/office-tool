@@ -1,36 +1,11 @@
 import argon2 from "argon2";
 import { PrismaClient } from "../apps/api/src/generated/prisma/index.js";
-import { ROLES, ROLE_PERMISSIONS, PERMISSIONS } from "../packages/shared/src/permissions.js";
+import { syncPermissions } from "./sync-permissions.js";
 
 const prisma = new PrismaClient();
 
 async function main() {
-  for (const key of PERMISSIONS) {
-    await prisma.permission.upsert({ where: { key }, update: {}, create: { key } });
-  }
-
-  const roleRecords: Record<string, string> = {};
-  for (const roleName of ROLES) {
-    const role = await prisma.role.upsert({
-      where: { name: roleName },
-      update: {},
-      create: { name: roleName },
-    });
-    roleRecords[roleName] = role.id;
-
-    const permKeys = ROLE_PERMISSIONS[roleName];
-    for (const key of permKeys) {
-      const permission = await prisma.permission.findUniqueOrThrow({ where: { key } });
-      await prisma.rolePermission.upsert({
-        where: { roleId_permissionId: { roleId: role.id, permissionId: permission.id } },
-        update: {},
-        create: { roleId: role.id, permissionId: permission.id },
-      });
-    }
-    await prisma.rolePermission.deleteMany({
-      where: { roleId: role.id, permission: { key: { notIn: permKeys } } },
-    });
-  }
+  const roleRecords = await syncPermissions(prisma);
 
   const password = await argon2.hash("Password123!");
 

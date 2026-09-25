@@ -36,4 +36,12 @@ export async function departmentRoutes(app: FastifyInstance) {
     const department = await prisma.department.update({ where: { id }, data: { status: "ARCHIVED" } });
     return reply.send({ department });
   });
+
+  app.delete("/:id", { preHandler: app.requirePermission("departments.delete") }, async (req, reply) => {
+    const { id } = req.params as { id: string };
+    const existing = await prisma.department.findUnique({ where: { id }, select: { id: true } });
+    if (!existing) return reply.code(404).send({ error: "not_found" });
+    await prisma.department.delete({ where: { id } });
+    return reply.send({ ok: true });
+  });
 }

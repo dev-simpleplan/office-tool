@@ -2,7 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { CreateTaskSchema, TASK_STATUSES, TASK_PRIORITIES, type CreateTaskInput } from "@office/validation";
-import { Button, Input, Textarea, Table, Badge, DatePicker, DateRangePicker, type DateRange, type DateRangePreset } from "@office/ui";
+import { Button, ConfirmDialog, Input, Textarea, Table, Badge, DatePicker, DateRangePicker, type DateRange, type DateRangePreset } from "@office/ui";
 import { Plus, Trash2, ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
 import { api } from "../lib/api";
 import { useAuthStore } from "../store/authStore";
@@ -63,6 +63,15 @@ export function TasksPage() {
   const [sort, setSort] = useState<{ key: SortKey; dir: "asc" | "desc" } | null>(null);
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+  const canDelete = useAuthStore((s) => s.user?.permissions.includes("tasks.delete"));
+  const [deleteTarget, setDeleteTarget] = useState<TaskSummary | null>(null);
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => api.delete(`/api/tasks/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["tasks"] });
+      setDeleteTarget(null);
+    },
+  });
 
   function toggleSort(key: SortKey) {
     setSort((s) => (s?.key === key ? { key, dir: s.dir === "asc" ? "desc" : "asc" } : { key, dir: "asc" }));
@@ -342,6 +351,7 @@ export function TasksPage() {
               <SortableHeader label="Priority" sortKey="priority" activeSort={sort} onSort={toggleSort} />
               <SortableHeader label="Due" sortKey="due" activeSort={sort} onSort={toggleSort} />
               <SortableHeader label="Hours (act/est)" sortKey="hours" activeSort={sort} onSort={toggleSort} />
+              {canDelete && <th>Actions</th>}
             </tr>
           </thead>
           <tbody>
@@ -354,14 +364,39 @@ export function TasksPage() {
                 <td>{t.priority}</td>
                 <td>{t.dueDate ? new Date(t.dueDate).toLocaleDateString() : "-"}</td>
                 <td>{t.actualHours}/{t.estimatedHours ?? "-"}</td>
+                {canDelete && (
+                  <td>
+                    <Button
+                      variant="ghost"
+                      className="text-danger"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setDeleteTarget(t);
+                      }}
+                    >
+                      Delete
+                    </Button>
+                  </td>
+                )}
               </tr>
             ))}
             {sortedTasks.length === 0 && (
-              <tr><td colSpan={7} className="text-text-muted">No tasks match these filters.</td></tr>
+              <tr><td colSpan={canDelete ? 8 : 7} className="text-text-muted">No tasks match these filters.</td></tr>
             )}
           </tbody>
         </Table>
       )}
+
+      <ConfirmDialog
+        open={!!deleteTarget}
+        title="Delete Task"
+        warning="This permanently deletes the task and cannot be undone."
+        description={`Delete "${deleteTarget?.title}"? Its comments, checklist, time entries, attachments, and activity history are deleted with it.`}
+        confirmLabel="Delete"
+        pending={deleteMutation.isPending}
+        onConfirm={() => deleteTarget && deleteMutation.mutate(deleteTarget.id)}
+        onCancel={() => setDeleteTarget(null)}
+      />
     </div>
   );
 }

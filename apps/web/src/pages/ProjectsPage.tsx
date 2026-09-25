@@ -14,9 +14,11 @@ export function ProjectsPage() {
   const canCreate = user?.permissions.includes("projects.create");
   const canUpdate = user?.permissions.includes("projects.update");
   const canArchive = user?.permissions.includes("projects.archive");
+  const canDelete = user?.permissions.includes("projects.delete");
   const [showForm, setShowForm] = useState(false);
   const [editingProject, setEditingProject] = useState<ProjectSummary | null>(null);
   const [archiveTarget, setArchiveTarget] = useState<ProjectSummary | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<ProjectSummary | null>(null);
   const queryClient = useQueryClient();
   const navigate = useNavigate();
 
@@ -95,6 +97,15 @@ export function ProjectsPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["projects"] });
       setArchiveTarget(null);
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => api.delete(`/api/projects/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["projects"] });
+      queryClient.invalidateQueries({ queryKey: ["tasks"] });
+      setDeleteTarget(null);
     },
   });
 
@@ -209,7 +220,7 @@ export function ProjectsPage() {
               <th>Status</th>
               <th>Priority</th>
               <th>Progress</th>
-              {(canUpdate || canArchive) && <th>Actions</th>}
+              {(canUpdate || canArchive || canDelete) && <th>Actions</th>}
             </tr>
           </thead>
           <tbody>
@@ -225,7 +236,7 @@ export function ProjectsPage() {
                 <td><Badge variant={p.status === "ARCHIVED" ? "warning" : "success"}>{p.status}</Badge></td>
                 <td>{p.priority}</td>
                 <td>{p.taskCount ? `${p.completedTaskCount}/${p.taskCount}` : "-"}</td>
-                {(canUpdate || canArchive) && (
+                {(canUpdate || canArchive || canDelete) && (
                   <td className="flex gap-2">
                     {canUpdate && (
                       <Button
@@ -249,6 +260,18 @@ export function ProjectsPage() {
                         Archive
                       </Button>
                     )}
+                    {canDelete && (
+                      <Button
+                        variant="ghost"
+                        className="text-danger"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setDeleteTarget(p);
+                        }}
+                      >
+                        Delete
+                      </Button>
+                    )}
                   </td>
                 )}
               </tr>
@@ -265,6 +288,17 @@ export function ProjectsPage() {
         pending={archiveMutation.isPending}
         onConfirm={() => archiveTarget && archiveMutation.mutate(archiveTarget.id)}
         onCancel={() => setArchiveTarget(null)}
+      />
+
+      <ConfirmDialog
+        open={!!deleteTarget}
+        title="Delete Project"
+        description={`Permanently delete "${deleteTarget?.name}"? This cannot be undone. Its tasks are kept but become standalone (no project).`}
+        warning="This permanently deletes the project and cannot be undone. To just hide it, use Archive instead."
+        confirmLabel="Delete"
+        pending={deleteMutation.isPending}
+        onConfirm={() => deleteTarget && deleteMutation.mutate(deleteTarget.id)}
+        onCancel={() => setDeleteTarget(null)}
       />
     </div>
   );

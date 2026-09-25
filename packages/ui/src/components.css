@@ -313,3 +313,13 @@ textarea:focus-visible,
   color: var(--color-danger);
   border-color: var(--color-danger);
 }
+
+.op-confirm-warning {
+  margin-bottom: 1rem;
+  padding: 0.75rem;
+  border-radius: 0.5rem;
+  border: 1px solid color-mix(in srgb, var(--color-danger) 50%, transparent);
+  background: color-mix(in srgb, var(--color-danger) 12%, transparent);
+  color: var(--color-danger);
+  font-size: 0.875rem;
+}

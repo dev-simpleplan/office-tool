@@ -13,9 +13,11 @@ export function DepartmentsPage() {
   const canCreate = user?.permissions.includes("departments.create");
   const canUpdate = user?.permissions.includes("departments.update");
   const canArchive = user?.permissions.includes("departments.archive");
+  const canDelete = user?.permissions.includes("departments.delete");
   const [showForm, setShowForm] = useState(false);
   const [editingDept, setEditingDept] = useState<DepartmentSummary | null>(null);
   const [archiveTarget, setArchiveTarget] = useState<DepartmentSummary | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<DepartmentSummary | null>(null);
   const queryClient = useQueryClient();
 
   const { data, isLoading } = useQuery({
@@ -72,6 +74,15 @@ export function DepartmentsPage() {
     },
   });
 
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => api.delete(`/api/departments/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["departments"] });
+      queryClient.invalidateQueries({ queryKey: ["teams"] });
+      setDeleteTarget(null);
+    },
+  });
+
   const activeMutation = editingDept ? updateMutation : createMutation;
 
   return (
@@ -125,7 +136,7 @@ export function DepartmentsPage() {
               <th>Name</th>
               <th>Description</th>
               <th>Status</th>
-              {(canUpdate || canArchive) && <th>Actions</th>}
+              {(canUpdate || canArchive || canDelete) && <th>Actions</th>}
             </tr>
           </thead>
           <tbody>
@@ -136,22 +147,25 @@ export function DepartmentsPage() {
                 <td>
                   <Badge variant={d.status === "ACTIVE" ? "success" : "warning"}>{d.status}</Badge>
                 </td>
-                {(canUpdate || canArchive) && (
+                {(canUpdate || canArchive || canDelete) && (
                   <td>
-                    {d.status === "ACTIVE" && (
-                      <div className="flex gap-2">
-                        {canUpdate && (
-                          <Button variant="ghost" onClick={() => openEditForm(d)}>
-                            Edit
-                          </Button>
-                        )}
-                        {canArchive && (
-                          <Button variant="ghost" onClick={() => setArchiveTarget(d)}>
-                            Archive
-                          </Button>
-                        )}
-                      </div>
-                    )}
+                    <div className="flex gap-2">
+                      {d.status === "ACTIVE" && canUpdate && (
+                        <Button variant="ghost" onClick={() => openEditForm(d)}>
+                          Edit
+                        </Button>
+                      )}
+                      {d.status === "ACTIVE" && canArchive && (
+                        <Button variant="ghost" onClick={() => setArchiveTarget(d)}>
+                          Archive
+                        </Button>
+                      )}
+                      {canDelete && (
+                        <Button variant="ghost" className="text-danger" onClick={() => setDeleteTarget(d)}>
+                          Delete
+                        </Button>
+                      )}
+                    </div>
                   </td>
                 )}
               </tr>
@@ -168,6 +182,17 @@ export function DepartmentsPage() {
         pending={archiveMutation.isPending}
         onConfirm={() => archiveTarget && archiveMutation.mutate(archiveTarget.id)}
         onCancel={() => setArchiveTarget(null)}
+      />
+
+      <ConfirmDialog
+        open={!!deleteTarget}
+        title="Delete Department"
+        description={`Permanently delete "${deleteTarget?.name}"? This cannot be undone. Teams under this department are deleted too, and employees, projects, and tasks that referenced it are left unassigned.`}
+        warning="This permanently deletes the department and its teams and cannot be undone. To just hide it, use Archive instead."
+        confirmLabel="Delete"
+        pending={deleteMutation.isPending}
+        onConfirm={() => deleteTarget && deleteMutation.mutate(deleteTarget.id)}
+        onCancel={() => setDeleteTarget(null)}
       />
     </div>
   );

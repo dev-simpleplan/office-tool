@@ -69,9 +69,15 @@ docker compose --profile prod exec api npx tsx prisma/seed.ts
 ```
 
 Re-run `migrate deploy` (never `migrate dev`) after every deploy that changes
-`prisma/schema.prisma`. Re-run the seed only after adding new permission
-constants — it's safe to re-run against existing data (upserts roles/
-permissions, does not touch employee/task data).
+`prisma/schema.prisma`. After a deploy that adds permission constants, run only
+the permissions sync — it upserts roles/permissions and touches nothing else:
+
+```bash
+docker compose --profile prod exec api npx tsx prisma/sync-permissions.ts
+```
+
+Don't re-run `seed.ts` on a live database: besides roles/permissions it
+recreates the demo users (`Password123!`), employees, projects and tasks.
 
 ## 7. Nginx + Let's Encrypt
 

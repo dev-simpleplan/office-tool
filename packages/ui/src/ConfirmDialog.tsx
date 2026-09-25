@@ -5,6 +5,7 @@ export interface ConfirmDialogProps {
   open: boolean;
   title: string;
   description: string;
+  warning?: string;
   confirmLabel?: string;
   danger?: boolean;
   pending?: boolean;
@@ -16,6 +17,7 @@ export function ConfirmDialog({
   open,
   title,
   description,
+  warning,
   confirmLabel = "Confirm",
   danger = true,
   pending = false,
@@ -24,6 +26,11 @@ export function ConfirmDialog({
 }: ConfirmDialogProps) {
   return (
     <Modal open={open} onClose={onCancel} title={title}>
+      {warning && (
+        <div role="alert" className="op-confirm-warning">
+          <strong>Warning:</strong> {warning}
+        </div>
+      )}
       <p className="mb-6 text-sm text-text-secondary">{description}</p>
       <div className="flex justify-end gap-3">
         <Button variant="secondary" onClick={onCancel} disabled={pending}>

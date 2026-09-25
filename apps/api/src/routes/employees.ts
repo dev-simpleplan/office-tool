@@ -421,4 +421,30 @@ export async function employeeRoutes(app: FastifyInstance) {
       return reply.send({ ok: true });
     },
   );
+
+  app.delete("/:id", { preHandler: app.requirePermission("employees.delete") }, async (req, reply) => {
+    const { id } = req.params as { id: string };
+    if (req.user!.employeeId === id) {
+      return reply.code(400).send({ error: "cannot_delete_self" });
+    }
+    const employee = await prisma.employee.findUnique({
+      where: { id },
+      select: { userId: true, photoStorageKey: true },
+    });
+    if (!employee) {
+      return reply.code(404).send({ error: "not_found" });
+    }
+    // Deleting the login cascades to attachment rows the user uploaded, so
+    // collect their files now or they'd be orphaned on disk.
+    const attachments = employee.userId
+      ? await prisma.taskAttachment.findMany({ where: { uploadedById: employee.userId }, select: { storageKey: true } })
+      : [];
+    await prisma.$transaction(async (tx) => {
+      await tx.employee.delete({ where: { id } });
+      if (employee.userId) await tx.user.delete({ where: { id: employee.userId } });
+    });
+    if (employee.photoStorageKey) await storage.remove(employee.photoStorageKey);
+    for (const a of attachments) await storage.remove(a.storageKey);
+    return reply.send({ ok: true });
+  });
 }
