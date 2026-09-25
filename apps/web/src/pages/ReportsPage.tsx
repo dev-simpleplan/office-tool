@@ -4,6 +4,7 @@ import { Button, StatCard, Table, DateRangePicker, computePresetRange, type Date
 import { api } from "../lib/api";
 import { downloadCsv } from "../lib/csv";
 import { useAuthStore } from "../store/authStore";
+import { isLeadRole } from "@office/shared";
 import type { EmployeeReport, TeamReport, ProjectReport, CompanyReport, EmployeeSummary, TeamSummary, ProjectSummary } from "@office/shared";
 
 type Tab = "employee" | "team" | "project" | "company";
@@ -21,7 +22,7 @@ function pct(n: number) {
 export function ReportsPage() {
   const user = useAuthStore((s) => s.user);
   const isAdmin = user?.roleName === "ADMIN";
-  const isTeamLead = user?.roleName === "TEAM_LEAD";
+  const isTeamLead = isLeadRole(user?.roleName);
   const isEmployee = user?.roleName === "EMPLOYEE";
 
   const availableTabs = useMemo<Tab[]>(() => {

@@ -10,7 +10,7 @@ import { useState } from "react";
 import { formatINR } from "../lib/currency";
 import { useNavigate } from "react-router-dom";
 
-const ROLE_LABEL: Record<string, string> = { ADMIN: "Admin", TEAM_LEAD: "Team Lead", EMPLOYEE: "Employee" };
+const ROLE_LABEL: Record<string, string> = { ADMIN: "Admin", TEAM_LEAD: "Team Lead", PROJECT_MANAGER: "Project Manager", EMPLOYEE: "Employee" };
 
 export function EmployeesPage() {
   const navigate = useNavigate();

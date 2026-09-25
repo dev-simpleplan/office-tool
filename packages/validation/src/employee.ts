@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { optionalUuid } from "./common.js";
 
-export const ASSIGNABLE_ROLES = ["ADMIN", "TEAM_LEAD", "EMPLOYEE"] as const;
+export const ASSIGNABLE_ROLES = ["ADMIN", "TEAM_LEAD", "PROJECT_MANAGER", "EMPLOYEE"] as const;
 
 export const CreateEmployeeSchema = z.object({
   fullName: z.string().min(1).max(200),

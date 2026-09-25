@@ -38,7 +38,7 @@ function Field({ label, value }: { label: string; value: string }) {
   );
 }
 
-const ROLE_LABEL: Record<string, string> = { ADMIN: "Admin", TEAM_LEAD: "Team Lead", EMPLOYEE: "Employee" };
+const ROLE_LABEL: Record<string, string> = { ADMIN: "Admin", TEAM_LEAD: "Team Lead", PROJECT_MANAGER: "Project Manager", EMPLOYEE: "Employee" };
 
 export function EmployeeDetailPage() {
   const { id } = useParams<{ id: string }>();

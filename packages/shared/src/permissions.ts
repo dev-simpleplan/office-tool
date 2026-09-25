@@ -1,5 +1,10 @@
-export const ROLES = ["ADMIN", "TEAM_LEAD", "EMPLOYEE"] as const;
+export const ROLES = ["ADMIN", "TEAM_LEAD", "PROJECT_MANAGER", "EMPLOYEE"] as const;
 export type RoleName = (typeof ROLES)[number];
+
+/** Roles that get the team-lead view of dashboards, reports and workload. */
+export function isLeadRole(role: string | undefined): boolean {
+  return role === "TEAM_LEAD" || role === "PROJECT_MANAGER";
+}
 
 export const PERMISSIONS = [
   "employees.view",
@@ -41,6 +46,24 @@ export const PERMISSIONS = [
 ] as const;
 export type PermissionName = (typeof PERMISSIONS)[number];
 
+// Team Lead and Project Manager share one permission set. Neither has
+// salary.* or appraisals.*, so neither can see or change pay.
+const LEAD_PERMISSIONS: PermissionName[] = [
+  "employees.view",
+  "departments.view",
+  "teams.view",
+  "schedules.view",
+  "projects.view",
+  "projects.create",
+  "projects.update",
+  "tasks.view",
+  "tasks.create",
+  "tasks.update",
+  "tasks.assign",
+  "time_entries.create",
+  "reports.view",
+];
+
 export const ROLE_PERMISSIONS: Record<RoleName, PermissionName[]> = {
   ADMIN: [
     "employees.view",
@@ -80,21 +103,8 @@ export const ROLE_PERMISSIONS: Record<RoleName, PermissionName[]> = {
     "reports.view",
     "roles.assign",
   ],
-  TEAM_LEAD: [
-    "employees.view",
-    "departments.view",
-    "teams.view",
-    "schedules.view",
-    "projects.view",
-    "projects.create",
-    "projects.update",
-    "tasks.view",
-    "tasks.create",
-    "tasks.update",
-    "tasks.assign",
-    "time_entries.create",
-    "reports.view",
-  ],
+  TEAM_LEAD: LEAD_PERMISSIONS,
+  PROJECT_MANAGER: LEAD_PERMISSIONS,
   EMPLOYEE: [
     "employees.view",
     "departments.view",

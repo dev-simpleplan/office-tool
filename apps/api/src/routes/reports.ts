@@ -1,4 +1,5 @@
 import type { FastifyInstance } from "fastify";
+import { isLeadRole } from "@office/shared";
 import { prisma } from "../lib/prisma.js";
 import { computeWorkload, startOfWeek, endOfWeek } from "../lib/workload.js";
 
@@ -52,7 +53,7 @@ export async function reportRoutes(app: FastifyInstance) {
     if (user.roleName === "EMPLOYEE" && employeeId !== user.employeeId) {
       return reply.code(403).send({ error: "forbidden", reason: "not_your_report" });
     }
-    if (user.roleName === "TEAM_LEAD") {
+    if (isLeadRole(user.roleName)) {
       const team = user.employeeId ? await prisma.team.findFirst({ where: { teamLeadId: user.employeeId } }) : null;
       const target = await prisma.employee.findUnique({ where: { id: employeeId }, select: { teamId: true } });
       if (employeeId !== user.employeeId && (!team || target?.teamId !== team.id)) {
@@ -82,7 +83,7 @@ export async function reportRoutes(app: FastifyInstance) {
     if (user.roleName === "EMPLOYEE") {
       return reply.code(403).send({ error: "forbidden", reason: "employees_have_no_team_report" });
     }
-    if (user.roleName === "TEAM_LEAD") {
+    if (isLeadRole(user.roleName)) {
       const team = user.employeeId ? await prisma.team.findFirst({ where: { teamLeadId: user.employeeId } }) : null;
       if (!team || team.id !== teamId) {
         return reply.code(403).send({ error: "forbidden", reason: "not_your_team" });

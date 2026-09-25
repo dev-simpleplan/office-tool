@@ -1,4 +1,5 @@
 import type { FastifyInstance } from "fastify";
+import { isLeadRole } from "@office/shared";
 import { prisma } from "../lib/prisma.js";
 import { computeWorkload, upcomingWithinDays, startOfWeek, endOfWeek } from "../lib/workload.js";
 
@@ -80,7 +81,7 @@ export async function dashboardRoutes(app: FastifyInstance) {
       });
     }
 
-    if (user.roleName === "TEAM_LEAD") {
+    if (isLeadRole(user.roleName)) {
       const team = user.employeeId
         ? await prisma.team.findFirst({ where: { teamLeadId: user.employeeId, status: "ACTIVE" } })
         : null;
@@ -151,7 +152,7 @@ export async function dashboardRoutes(app: FastifyInstance) {
     if (user.roleName === "EMPLOYEE" && employeeId !== user.employeeId) {
       return reply.code(403).send({ error: "forbidden", reason: "not_your_workload" });
     }
-    if (user.roleName === "TEAM_LEAD") {
+    if (isLeadRole(user.roleName)) {
       const team = user.employeeId ? await prisma.team.findFirst({ where: { teamLeadId: user.employeeId } }) : null;
       const target = await prisma.employee.findUnique({ where: { id: employeeId }, select: { teamId: true } });
       if (employeeId !== user.employeeId && (!team || target?.teamId !== team.id)) {
@@ -176,7 +177,7 @@ export async function dashboardRoutes(app: FastifyInstance) {
 
     const isEmployee = user.roleName === "EMPLOYEE";
     let teamMemberIds: string[] | null = null;
-    if (user.roleName === "TEAM_LEAD") {
+    if (isLeadRole(user.roleName)) {
       const team = user.employeeId ? await prisma.team.findFirst({ where: { teamLeadId: user.employeeId } }) : null;
       teamMemberIds = team ? (await prisma.employee.findMany({ where: { teamId: team.id }, select: { id: true } })).map((e) => e.id) : [];
     }

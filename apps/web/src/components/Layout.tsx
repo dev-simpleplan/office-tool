@@ -1,4 +1,5 @@
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
+import { isLeadRole } from "@office/shared";
 import { LayoutDashboard, Users, LogOut, Moon, Sun, Monitor, Building2, UsersRound, CalendarClock, UserCircle, FolderKanban, ListChecks, CalendarDays, Gauge, BarChart3 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useAuthStore } from "../store/authStore";
@@ -66,7 +67,7 @@ export function Layout() {
         >
           <CalendarDays size={18} /> Calendar
         </NavLink>
-        {user?.roleName === "TEAM_LEAD" && (
+        {isLeadRole(user?.roleName) && (
           <NavLink
             to="/team/workload"
             className={({ isActive }) =>
@@ -163,7 +164,7 @@ export function Layout() {
       <div className="flex-1 flex flex-col min-w-0">
         <header className="flex items-center justify-between border-b border-border bg-surface px-6 py-3">
           <div className="text-sm text-text-muted">
-            {user ? `${user.email} · ${user.roleName}` : ""}
+            {user ? `${user.email} · ${user.roleName.replace("_", " ")}` : ""}
           </div>
           <div className="flex items-center gap-3">
             <button
