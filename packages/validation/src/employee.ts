@@ -42,3 +42,10 @@ export const CreateLeaveRequestSchema = z.object({
   notes: z.string().max(1000).optional(),
 });
 export type CreateLeaveRequestInput = z.infer<typeof CreateLeaveRequestSchema>;
+
+export const ASSIGNABLE_ROLES = ["ADMIN", "TEAM_LEAD", "EMPLOYEE"] as const;
+
+export const UpdateRoleSchema = z.object({
+  role: z.enum(ASSIGNABLE_ROLES),
+});
+export type UpdateRoleInput = z.infer<typeof UpdateRoleSchema>;

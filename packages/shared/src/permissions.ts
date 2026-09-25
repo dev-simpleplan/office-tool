@@ -37,6 +37,7 @@ export const PERMISSIONS = [
   "tasks.delete",
   "time_entries.create",
   "reports.view",
+  "roles.assign",
 ] as const;
 export type PermissionName = (typeof PERMISSIONS)[number];
 
@@ -77,6 +78,7 @@ export const ROLE_PERMISSIONS: Record<RoleName, PermissionName[]> = {
     "tasks.delete",
     "time_entries.create",
     "reports.view",
+    "roles.assign",
   ],
   TEAM_LEAD: [
     "employees.view",

@@ -6,6 +6,7 @@ import {
   CreateAppraisalSchema,
   UpdateAppraisalSchema,
   CreateLoginSchema,
+  UpdateRoleSchema,
   CreateLeaveRequestSchema,
 } from "@office/validation";
 import { prisma } from "../lib/prisma.js";
@@ -128,14 +129,20 @@ export async function employeeRoutes(app: FastifyInstance) {
         department: { select: { id: true, name: true } },
         team: { select: { id: true, name: true } },
         schedule: { select: { id: true, name: true } },
-        user: { select: { id: true, email: true } },
+        user: { select: { id: true, email: true, role: { select: { name: true } } } },
       },
     });
     if (!employee) {
       return reply.code(404).send({ error: "not_found" });
     }
-    const { photoStorageKey, ...rest } = employee;
-    return reply.send({ employee: { ...rest, hasPhoto: !!photoStorageKey } });
+    const { photoStorageKey, user, ...rest } = employee;
+    return reply.send({
+      employee: {
+        ...rest,
+        user: user ? { id: user.id, email: user.email, roleName: user.role.name } : null,
+        hasPhoto: !!photoStorageKey,
+      },
+    });
   });
 
   app.post("/", { preHandler: app.requirePermission("employees.create") }, async (req, reply) => {
@@ -446,5 +453,26 @@ export async function employeeRoutes(app: FastifyInstance) {
     if (employee.photoStorageKey) await storage.remove(employee.photoStorageKey);
     for (const a of attachments) await storage.remove(a.storageKey);
     return reply.send({ ok: true });
+  });
+
+  app.patch("/:id/role", { preHandler: app.requirePermission("roles.assign") }, async (req, reply) => {
+    const { id } = req.params as { id: string };
+    const parsed = UpdateRoleSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return reply.code(400).send({ error: "invalid_input", issues: parsed.error.issues });
+    }
+    if (req.user!.employeeId === id) {
+      return reply.code(400).send({ error: "cannot_change_own_role" });
+    }
+    const employee = await prisma.employee.findUnique({ where: { id }, select: { userId: true } });
+    if (!employee) {
+      return reply.code(404).send({ error: "not_found" });
+    }
+    if (!employee.userId) {
+      return reply.code(409).send({ error: "no_login" });
+    }
+    const role = await prisma.role.findUniqueOrThrow({ where: { name: parsed.data.role } });
+    await prisma.user.update({ where: { id: employee.userId }, data: { roleId: role.id } });
+    return reply.send({ ok: true, roleName: role.name });
   });
 }

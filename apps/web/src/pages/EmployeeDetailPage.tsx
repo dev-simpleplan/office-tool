@@ -13,6 +13,7 @@ import {
   type CreateAppraisalInput,
   type CreateLoginInput,
   type CreateLeaveRequestInput,
+  ASSIGNABLE_ROLES,
 } from "@office/validation";
 import { api, ApiError } from "../lib/api";
 import { useAuthStore } from "../store/authStore";
@@ -36,6 +37,8 @@ function Field({ label, value }: { label: string; value: string }) {
   );
 }
 
+const ROLE_LABEL: Record<string, string> = { ADMIN: "Admin", TEAM_LEAD: "Team Lead", EMPLOYEE: "Employee" };
+
 export function EmployeeDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -43,6 +46,7 @@ export function EmployeeDetailPage() {
   const canUpdate = user?.permissions.includes("employees.update");
   const canArchive = user?.permissions.includes("employees.archive");
   const canDelete = user?.permissions.includes("employees.delete");
+  const canAssignRoles = user?.permissions.includes("roles.assign");
   const canViewSalary = user?.permissions.includes("salary.view");
   const canViewAppraisals = user?.permissions.includes("appraisals.view");
   const canCreateAppraisal = user?.permissions.includes("appraisals.create");
@@ -51,6 +55,8 @@ export function EmployeeDetailPage() {
   const [editing, setEditing] = useState(false);
   const [confirmArchive, setConfirmArchive] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [pendingRole, setPendingRole] = useState<(typeof ASSIGNABLE_ROLES)[number] | null>(null);
+  const [roleError, setRoleError] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [showAppraisalForm, setShowAppraisalForm] = useState(false);
   const [editingAppraisalId, setEditingAppraisalId] = useState<string | null>(null);
@@ -146,6 +152,18 @@ export function EmployeeDetailPage() {
       queryClient.invalidateQueries({ queryKey: ["employees"] });
       setConfirmArchive(false);
       navigate("/employees");
+    },
+  });
+
+  const roleMutation = useMutation({
+    mutationFn: (role: (typeof ASSIGNABLE_ROLES)[number]) => api.patch(`/api/employees/${id}/role`, { role }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["employee", id] });
+      setPendingRole(null);
+    },
+    onError: () => {
+      setPendingRole(null);
+      setRoleError("Failed to change role.");
     },
   });
 
@@ -344,7 +362,7 @@ export function EmployeeDetailPage() {
               Archive
             </Button>
           )}
-          {canDelete && (
+          {canDelete && user?.employeeId !== e.id && (
             <Button
               variant="secondary"
               className="text-danger"
@@ -499,6 +517,33 @@ export function EmployeeDetailPage() {
                   </button>
                 )}
               </div>
+              {e.user && (
+                <div className="mt-2 flex items-center gap-3 text-sm text-text">
+                  <span className="text-text-muted">Role:</span>
+                  {canAssignRoles && user?.employeeId !== e.id ? (
+                    <select
+                      className="op-input w-auto"
+                      value={e.user.roleName}
+                      onChange={(ev) => {
+                        setRoleError(null);
+                        const next = ev.target.value as (typeof ASSIGNABLE_ROLES)[number];
+                        if (next !== e.user?.roleName) setPendingRole(next);
+                      }}
+                    >
+                      {ASSIGNABLE_ROLES.map((r) => (
+                        <option key={r} value={r}>
+                          {ROLE_LABEL[r]}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <Badge variant={e.user.roleName === "ADMIN" ? "warning" : "default"}>
+                      {ROLE_LABEL[e.user.roleName]}
+                    </Badge>
+                  )}
+                  {roleError && <span className="text-xs text-danger">{roleError}</span>}
+                </div>
+              )}
               {showLoginForm && (
                 <form
                   onSubmit={handleSubmitLogin((formData) => createLoginMutation.mutate(formData))}
@@ -803,6 +848,22 @@ export function EmployeeDetailPage() {
         pending={archiveMutation.isPending}
         onConfirm={() => archiveMutation.mutate()}
         onCancel={() => setConfirmArchive(false)}
+      />
+
+      <ConfirmDialog
+        open={!!pendingRole}
+        title="Change Role"
+        warning={
+          pendingRole === "ADMIN"
+            ? "Admins can see salaries, manage every record, and permanently delete data."
+            : undefined
+        }
+        description={`Change ${e.fullName}'s role to ${pendingRole ? ROLE_LABEL[pendingRole] : ""}? It takes effect immediately.`}
+        confirmLabel="Change Role"
+        danger={false}
+        pending={roleMutation.isPending}
+        onConfirm={() => pendingRole && roleMutation.mutate(pendingRole)}
+        onCancel={() => setPendingRole(null)}
       />
 
       <ConfirmDialog
