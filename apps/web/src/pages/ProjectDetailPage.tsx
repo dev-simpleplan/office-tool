@@ -1,9 +1,16 @@
 import { useQuery } from "@tanstack/react-query";
 import { useParams, useNavigate } from "react-router-dom";
-import { Badge, Table } from "@office/ui";
+import { Badge, DetailGrid, DetailItem, ProgressBar, Table } from "@office/ui";
 import { api } from "../lib/api";
 import { formatINR } from "../lib/currency";
 import type { ProjectDetail } from "@office/shared";
+
+const PRIORITY_VARIANT: Record<string, "default" | "info" | "warning" | "danger"> = {
+  LOW: "default",
+  MEDIUM: "info",
+  HIGH: "warning",
+  URGENT: "danger",
+};
 
 export function ProjectDetailPage() {
   const { id } = useParams();
@@ -29,20 +36,33 @@ export function ProjectDetailPage() {
         <Badge variant={project.status === "ARCHIVED" ? "warning" : "success"}>{project.status}</Badge>
       </div>
 
-      <div className="mb-6 grid grid-cols-1 gap-4 rounded-lg border border-border bg-surface p-6 sm:grid-cols-3">
-        <div><p className="text-xs text-text-muted">Client</p><p>{project.client ?? "-"}</p></div>
-        <div><p className="text-xs text-text-muted">Department</p><p>{project.department?.name ?? "-"}</p></div>
-        <div><p className="text-xs text-text-muted">Team</p><p>{project.team?.name ?? "-"}</p></div>
-        <div><p className="text-xs text-text-muted">Project Lead</p><p>{project.projectLead?.fullName ?? "-"}</p></div>
-        <div><p className="text-xs text-text-muted">Priority</p><p>{project.priority}</p></div>
-        <div><p className="text-xs text-text-muted">Budget</p><p>{project.budget != null ? formatINR(project.budget) : "-"}</p></div>
-        <div><p className="text-xs text-text-muted">Start Date</p><p>{project.startDate ? new Date(project.startDate).toLocaleDateString() : "-"}</p></div>
-        <div><p className="text-xs text-text-muted">End Date</p><p>{project.endDate ? new Date(project.endDate).toLocaleDateString() : "-"}</p></div>
-        <div><p className="text-xs text-text-muted">Progress</p><p>{progress}% ({project.completedTaskCount}/{project.taskCount} tasks)</p></div>
+      <DetailGrid className="mb-8">
+        <DetailItem label="Client">{project.client}</DetailItem>
+        <DetailItem label="Department">{project.department?.name}</DetailItem>
+        <DetailItem label="Team">{project.team?.name}</DetailItem>
+        <DetailItem label="Project Lead">{project.projectLead?.fullName}</DetailItem>
+        <DetailItem label="Priority">
+          <Badge variant={PRIORITY_VARIANT[project.priority] ?? "default"}>{project.priority}</Badge>
+        </DetailItem>
+        <DetailItem label="Budget">{project.budget != null ? formatINR(project.budget) : null}</DetailItem>
+        <DetailItem label="Start Date">
+          {project.startDate ? new Date(project.startDate).toLocaleDateString() : null}
+        </DetailItem>
+        <DetailItem label="End Date">
+          {project.endDate ? new Date(project.endDate).toLocaleDateString() : null}
+        </DetailItem>
+        <DetailItem label="Progress">
+          <ProgressBar value={progress} />
+          <span className="text-sm text-text-secondary">
+            {progress}% · {project.completedTaskCount} of {project.taskCount} tasks done
+          </span>
+        </DetailItem>
         {project.description && (
-          <div className="sm:col-span-3"><p className="text-xs text-text-muted">Description</p><p>{project.description}</p></div>
+          <DetailItem label="Description" full>
+            {project.description}
+          </DetailItem>
         )}
-      </div>
+      </DetailGrid>
 
       <h2 className="mb-3 text-lg font-semibold">Tasks</h2>
       <Table>

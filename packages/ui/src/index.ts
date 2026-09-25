@@ -10,3 +10,4 @@ export * from "./Avatar";
 export * from "./StatCard";
 export * from "./DateRangePicker";
 export * from "./DatePicker";
+export * from "./DetailGrid";

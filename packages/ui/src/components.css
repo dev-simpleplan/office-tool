@@ -337,3 +337,73 @@ textarea:focus-visible,
   color: var(--color-danger);
   font-size: 0.875rem;
 }
+
+/* Detail grid: ruled label/value cells. Lines are drawn as box-shadows on each
+   cell and clipped by the container's overflow, so any number of cells
+   (including a partial last row) gets clean inner borders and no outer double
+   border. */
+.op-detail-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  margin: 0;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg, 0.75rem);
+  background: var(--color-surface);
+}
+@media (min-width: 640px) {
+  .op-detail-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+@media (min-width: 1024px) {
+  .op-detail-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+.op-detail-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  min-width: 0;
+  padding: 1rem 1.25rem;
+  box-shadow:
+    1px 0 0 0 var(--color-border),
+    0 1px 0 0 var(--color-border);
+}
+.op-detail-item--full {
+  grid-column: 1 / -1;
+}
+.op-detail-item__label {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+.op-detail-item__value {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 500;
+  line-height: 1.4;
+  color: var(--color-text);
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+.op-detail-item__value--empty {
+  color: var(--color-text-muted);
+  font-weight: 400;
+}
+.op-progress {
+  height: 0.375rem;
+  margin-top: 0.125rem;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--color-border);
+}
+.op-progress__bar {
+  height: 100%;
+  border-radius: 999px;
+  background: var(--color-primary);
+  transition: width 0.3s ease;
+}
