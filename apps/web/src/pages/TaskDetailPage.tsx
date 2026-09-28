@@ -1,10 +1,22 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useParams, useNavigate } from "react-router-dom";
-import { Badge, Button, ConfirmDialog, Input, DatePicker } from "@office/ui";
+import { useForm, Controller } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import {
+  Badge,
+  Button,
+  ConfirmDialog,
+  DetailGrid,
+  DetailItem,
+  Input,
+  Textarea,
+  DatePicker,
+} from "@office/ui";
+import { Plus, Trash2 } from "lucide-react";
 import { api } from "../lib/api";
 import { useAuthStore } from "../store/authStore";
-import type { TaskDetail } from "@office/shared";
-import { TASK_STATUSES } from "@office/validation";
+import type { TaskDetail, ProjectSummary, EmployeeSummary } from "@office/shared";
+import { CreateTaskSchema, TASK_STATUSES, TASK_PRIORITIES, type CreateTaskInput } from "@office/validation";
 import { useRef, useState } from "react";
 import { relativeTime } from "../lib/relativeTime";
 
@@ -14,6 +26,13 @@ const ACTIVITY_LABEL: Record<string, string> = {
   assigned: "assigned the task",
   reassigned: "reassigned the task",
   comment_added: "added a comment",
+};
+
+const PRIORITY_VARIANT: Record<string, "default" | "info" | "warning" | "danger"> = {
+  LOW: "default",
+  MEDIUM: "info",
+  HIGH: "warning",
+  URGENT: "danger",
 };
 
 function formatFileSize(bytes: number): string {
@@ -40,6 +59,29 @@ export function TaskDetailPage() {
   const [commentText, setCommentText] = useState("");
   const [confirmDelete, setConfirmDelete] = useState(false);
   const canDelete = user?.permissions.includes("tasks.delete");
+  const canFullEdit = user?.permissions.includes("tasks.update") && user.roleName !== "EMPLOYEE";
+  const [editing, setEditing] = useState(false);
+  const [editLinks, setEditLinks] = useState<string[]>([""]);
+  const [editTagsInput, setEditTagsInput] = useState("");
+
+  const { data: projectData } = useQuery({
+    queryKey: ["projects"],
+    queryFn: () => api.get<{ projects: ProjectSummary[] }>("/api/projects"),
+    enabled: canFullEdit,
+  });
+  const { data: empData } = useQuery({
+    queryKey: ["employees"],
+    queryFn: () => api.get<{ employees: EmployeeSummary[] }>("/api/employees"),
+    enabled: canFullEdit,
+  });
+
+  const {
+    register: registerEdit,
+    handleSubmit: handleSubmitEdit,
+    reset: resetEdit,
+    control: editControl,
+    formState: { errors: editErrors, isSubmitting: isSubmittingEdit },
+  } = useForm<CreateTaskInput>({ resolver: zodResolver(CreateTaskSchema) });
 
   function invalidate() {
     queryClient.invalidateQueries({ queryKey: ["tasks", id] });
@@ -49,6 +91,13 @@ export function TaskDetailPage() {
   const statusMutation = useMutation({
     mutationFn: (status: string) => api.patch(`/api/tasks/${id}`, { status }),
     onSuccess: invalidate,
+  });
+  const editMutation = useMutation({
+    mutationFn: (input: CreateTaskInput) => api.patch(`/api/tasks/${id}`, input),
+    onSuccess: () => {
+      invalidate();
+      setEditing(false);
+    },
   });
   const checklistAddMutation = useMutation({
     mutationFn: (label: string) => api.post(`/api/tasks/${id}/checklist`, { label }),
@@ -108,6 +157,35 @@ export function TaskDetailPage() {
   const canChangeStatus = user?.permissions.includes("tasks.update") && (user.permissions.includes("tasks.assign") || isOwnTask);
   const canLogTime = user?.permissions.includes("time_entries.create");
 
+  function openEdit() {
+    const t = task!;
+    resetEdit({
+      title: t.title,
+      description: t.description ?? "",
+      projectId: t.projectId ?? "",
+      assigneeId: t.assigneeId ?? "",
+      priority: t.priority,
+      status: t.status,
+      startDate: t.startDate ? t.startDate.slice(0, 10) : "",
+      dueDate: t.dueDate ? t.dueDate.slice(0, 10) : "",
+      estimatedHours: t.estimatedHours ?? undefined,
+    });
+    setEditLinks(t.links.length > 0 ? t.links : [""]);
+    setEditTagsInput(t.tags.join(", "));
+    setEditing(true);
+  }
+
+  function submitEdit(formData: CreateTaskInput) {
+    editMutation.mutate({
+      ...formData,
+      links: editLinks.map((l) => l.trim()).filter(Boolean),
+      tags: editTagsInput
+        .split(",")
+        .map((t) => t.trim())
+        .filter(Boolean),
+    });
+  }
+
   return (
     <div>
       <button onClick={() => navigate("/tasks")} className="mb-4 text-sm text-text-muted hover:text-text">
@@ -119,6 +197,11 @@ export function TaskDetailPage() {
           <Badge variant={task.status === "COMPLETED" ? "success" : task.status === "BLOCKED" ? "danger" : "default"}>
             {task.status}
           </Badge>
+          {canFullEdit && !editing && (
+            <Button variant="secondary" onClick={openEdit}>
+              Edit
+            </Button>
+          )}
           {canDelete && (
             <Button variant="secondary" className="text-danger" onClick={() => setConfirmDelete(true)}>
               Delete
@@ -138,51 +221,186 @@ export function TaskDetailPage() {
         onCancel={() => setConfirmDelete(false)}
       />
 
-      <div className="mb-6 grid grid-cols-1 gap-4 rounded-lg border border-border bg-surface p-6 sm:grid-cols-3">
-        <div><p className="text-xs text-text-muted">Project</p><p>{task.project?.name ?? "Standalone"}</p></div>
-        <div><p className="text-xs text-text-muted">Assignee</p><p>{task.assignee?.fullName ?? "Unassigned"}</p></div>
-        <div><p className="text-xs text-text-muted">Priority</p><p>{task.priority}</p></div>
-        <div><p className="text-xs text-text-muted">Due Date</p><p>{task.dueDate ? new Date(task.dueDate).toLocaleDateString() : "-"}</p></div>
-        <div><p className="text-xs text-text-muted">Estimated Hours</p><p>{task.estimatedHours ?? "-"}</p></div>
-        <div><p className="text-xs text-text-muted">Actual Hours</p><p>{task.actualHours}</p></div>
-        {task.description && (
-          <div className="sm:col-span-3"><p className="text-xs text-text-muted">Description</p><p className="whitespace-pre-wrap">{task.description}</p></div>
-        )}
-        {task.links.length > 0 && (
-          <div className="sm:col-span-3">
-            <p className="mb-1 text-xs text-text-muted">Links</p>
-            <ul className="space-y-1">
-              {task.links.map((link, i) => (
-                <li key={i}>
-                  <a
-                    href={link}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-sm text-primary hover:underline"
-                  >
-                    {link}
-                  </a>
-                </li>
-              ))}
-            </ul>
+      {editing ? (
+        <form
+          onSubmit={handleSubmitEdit(submitEdit)}
+          className="mb-6 grid grid-cols-1 gap-4 rounded-lg border border-border bg-surface p-6 sm:grid-cols-2"
+        >
+          <div className="sm:col-span-2">
+            <label className="mb-1 block text-sm font-medium">Title</label>
+            <Input {...registerEdit("title")} />
+            {editErrors.title && <p className="mt-1 text-xs text-danger">{editErrors.title.message}</p>}
           </div>
-        )}
-        {canChangeStatus && (
-          <div className="sm:col-span-3">
-            <label className="mb-1 block text-sm font-medium">Update Status</label>
-            <select
-              className="op-input w-auto"
-              value={task.status}
-              onChange={(e) => statusMutation.mutate(e.target.value)}
-              disabled={statusMutation.isPending}
-            >
+          <div>
+            <label className="mb-1 block text-sm font-medium">Project</label>
+            <select className="op-input" {...registerEdit("projectId")}>
+              <option value="">None (standalone)</option>
+              {projectData?.projects.map((p) => (
+                <option key={p.id} value={p.id}>{p.name}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium">Assignee</label>
+            <select className="op-input" {...registerEdit("assigneeId")}>
+              <option value="">Unassigned</option>
+              {empData?.employees.map((e) => (
+                <option key={e.id} value={e.id}>{e.fullName}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium">Priority</label>
+            <select className="op-input" {...registerEdit("priority")}>
+              {TASK_PRIORITIES.map((p) => (
+                <option key={p} value={p}>{p}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium">Status</label>
+            <select className="op-input" {...registerEdit("status")}>
               {TASK_STATUSES.map((s) => (
                 <option key={s} value={s}>{s}</option>
               ))}
             </select>
           </div>
-        )}
-      </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium">Start Date</label>
+            <Controller
+              name="startDate"
+              control={editControl}
+              render={({ field }) => <DatePicker value={field.value ?? ""} onChange={field.onChange} />}
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium">Due Date</label>
+            <Controller
+              name="dueDate"
+              control={editControl}
+              render={({ field }) => <DatePicker value={field.value ?? ""} onChange={field.onChange} />}
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium">Estimated Hours</label>
+            <Input type="number" step="0.5" {...registerEdit("estimatedHours")} />
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium">Tags</label>
+            <Input
+              placeholder="comma, separated, tags"
+              value={editTagsInput}
+              onChange={(e) => setEditTagsInput(e.target.value)}
+            />
+          </div>
+          <div className="sm:col-span-2">
+            <label className="mb-1 block text-sm font-medium">Description</label>
+            <Textarea rows={5} {...registerEdit("description")} />
+          </div>
+          <div className="sm:col-span-2">
+            <label className="mb-1 block text-sm font-medium">Links</label>
+            <div className="space-y-2">
+              {editLinks.map((link, i) => (
+                <div key={i} className="flex gap-2">
+                  <Input
+                    type="url"
+                    placeholder="https://..."
+                    value={link}
+                    onChange={(e) =>
+                      setEditLinks((ls) => ls.map((l, idx) => (idx === i ? e.target.value : l)))
+                    }
+                  />
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    onClick={() => setEditLinks((ls) => ls.filter((_, idx) => idx !== i))}
+                    disabled={editLinks.length === 1}
+                    aria-label="Remove link"
+                  >
+                    <Trash2 size={16} />
+                  </Button>
+                </div>
+              ))}
+              <Button type="button" variant="secondary" onClick={() => setEditLinks((ls) => [...ls, ""])}>
+                <Plus size={16} /> Add Link
+              </Button>
+            </div>
+          </div>
+          <div className="sm:col-span-2 flex items-center gap-3">
+            <Button type="submit" disabled={isSubmittingEdit || editMutation.isPending}>
+              {editMutation.isPending ? "Saving..." : "Save Task"}
+            </Button>
+            <Button type="button" variant="secondary" onClick={() => setEditing(false)}>
+              Cancel
+            </Button>
+            {editMutation.isError && <p className="text-sm text-danger">Failed to save task.</p>}
+          </div>
+        </form>
+      ) : (
+        <DetailGrid className="mb-6">
+          <DetailItem label="Project">{task.project?.name}</DetailItem>
+          <DetailItem label="Assignee">{task.assignee?.fullName ?? "Unassigned"}</DetailItem>
+          <DetailItem label="Priority">
+            <Badge variant={PRIORITY_VARIANT[task.priority] ?? "default"}>{task.priority}</Badge>
+          </DetailItem>
+          <DetailItem label="Start Date">
+            {task.startDate ? new Date(task.startDate).toLocaleDateString() : null}
+          </DetailItem>
+          <DetailItem label="Due Date">
+            {task.dueDate ? new Date(task.dueDate).toLocaleDateString() : null}
+          </DetailItem>
+          <DetailItem label="Hours (act/est)">
+            {task.actualHours}
+            {task.estimatedHours != null ? ` / ${task.estimatedHours}` : ""}
+          </DetailItem>
+          {task.tags.length > 0 && (
+            <DetailItem label="Tags">
+              <div className="flex flex-wrap gap-1.5">
+                {task.tags.map((t) => (
+                  <Badge key={t} variant="default">{t}</Badge>
+                ))}
+              </div>
+            </DetailItem>
+          )}
+          {canChangeStatus && (
+            <DetailItem label="Update Status">
+              <select
+                className="op-input w-auto"
+                value={task.status}
+                onChange={(e) => statusMutation.mutate(e.target.value)}
+                disabled={statusMutation.isPending}
+              >
+                {TASK_STATUSES.map((s) => (
+                  <option key={s} value={s}>{s}</option>
+                ))}
+              </select>
+            </DetailItem>
+          )}
+          {task.description && (
+            <DetailItem label="Description" full>
+              <span className="whitespace-pre-wrap">{task.description}</span>
+            </DetailItem>
+          )}
+          {task.links.length > 0 && (
+            <DetailItem label="Links" full>
+              <ul className="space-y-1">
+                {task.links.map((link, i) => (
+                  <li key={i}>
+                    <a
+                      href={link}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-sm text-primary hover:underline"
+                    >
+                      {link}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </DetailItem>
+          )}
+        </DetailGrid>
+      )}
 
       <div className="mb-6 rounded-lg border border-border bg-surface p-6">
         <h2 className="mb-3 text-lg font-semibold">Checklist</h2>
