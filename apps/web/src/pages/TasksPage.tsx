@@ -244,7 +244,7 @@ export function TasksPage() {
             </select>
           </div>
           <div>
-            <label className="mb-1 block text-sm font-medium">Assignee</label>
+            <label className="mb-1 block text-sm font-medium">Assign Task To</label>
             <select className="op-input" {...register("assigneeId")}>
               <option value="">Unassigned</option>
               {empData?.employees.map((e) => (
