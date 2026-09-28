@@ -52,6 +52,13 @@ export const CreateTimeEntrySchema = z.object({
 });
 export type CreateTimeEntryInput = z.infer<typeof CreateTimeEntrySchema>;
 
+export const UpdateTimeEntrySchema = z.object({
+  date: z.string().min(1).optional(),
+  hours: z.coerce.number().positive().max(24).optional(),
+  description: z.string().max(1000).optional(),
+});
+export type UpdateTimeEntryInput = z.infer<typeof UpdateTimeEntrySchema>;
+
 export const CreateCommentSchema = z.object({
   content: z.string().min(1).max(4000),
 });

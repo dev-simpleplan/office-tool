@@ -6,6 +6,7 @@ import {
   CreateChecklistItemSchema,
   UpdateChecklistItemSchema,
   CreateTimeEntrySchema,
+  UpdateTimeEntrySchema,
   CreateCommentSchema,
 } from "@office/validation";
 import { prisma } from "../lib/prisma.js";
@@ -380,6 +381,27 @@ export async function taskRoutes(app: FastifyInstance) {
       include: { employee: { select: { id: true, fullName: true } } },
     });
     return reply.code(201).send({ entry: { ...entry, hours: Number(entry.hours) } });
+  });
+
+  app.patch("/:id/time-entries/:entryId", { preHandler: app.requireAuth }, async (req, reply) => {
+    const { id, entryId } = req.params as { id: string; entryId: string };
+    const user = req.user!;
+    const existing = await prisma.timeEntry.findUnique({ where: { id: entryId } });
+    if (!existing || existing.taskId !== id) return reply.code(404).send({ error: "not_found" });
+
+    const canEditAny = user.permissions.includes("tasks.update");
+    if (!canEditAny && existing.employeeId !== user.employeeId) {
+      return reply.code(403).send({ error: "forbidden", reason: "not_your_entry" });
+    }
+    const parsed = UpdateTimeEntrySchema.safeParse(req.body);
+    if (!parsed.success) return reply.code(400).send({ error: "invalid_input", issues: parsed.error.issues });
+    const { date, ...rest } = parsed.data;
+    const entry = await prisma.timeEntry.update({
+      where: { id: entryId },
+      data: { ...rest, ...(date !== undefined ? { date: new Date(date) } : {}) },
+      include: { employee: { select: { id: true, fullName: true } } },
+    });
+    return reply.send({ entry: { ...entry, hours: Number(entry.hours) } });
   });
 
   app.post("/:id/comments", { preHandler: app.requirePermission("tasks.view") }, async (req, reply) => {

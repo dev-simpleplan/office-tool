@@ -56,6 +56,10 @@ export function TaskDetailPage() {
   const [timeEntryHours, setTimeEntryHours] = useState("");
   const [timeEntryDate, setTimeEntryDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [timeEntryDesc, setTimeEntryDesc] = useState("");
+  const [editingEntryId, setEditingEntryId] = useState<string | null>(null);
+  const [editEntryDate, setEditEntryDate] = useState("");
+  const [editEntryHours, setEditEntryHours] = useState("");
+  const [editEntryDesc, setEditEntryDesc] = useState("");
   const [commentText, setCommentText] = useState("");
   const [confirmDelete, setConfirmDelete] = useState(false);
   const canDelete = user?.permissions.includes("tasks.delete");
@@ -124,6 +128,18 @@ export function TaskDetailPage() {
       invalidate();
     },
   });
+  const timeEntryEditMutation = useMutation({
+    mutationFn: (entryId: string) =>
+      api.patch(`/api/tasks/${id}/time-entries/${entryId}`, {
+        date: editEntryDate,
+        hours: Number(editEntryHours),
+        description: editEntryDesc || undefined,
+      }),
+    onSuccess: () => {
+      setEditingEntryId(null);
+      invalidate();
+    },
+  });
   const commentMutation = useMutation({
     mutationFn: () => api.post(`/api/tasks/${id}/comments`, { content: commentText }),
     onSuccess: () => {
@@ -156,6 +172,10 @@ export function TaskDetailPage() {
   const isOwnTask = user?.employeeId && user.employeeId === task.assigneeId;
   const canChangeStatus = user?.permissions.includes("tasks.update") && (user.permissions.includes("tasks.assign") || isOwnTask);
   const canLogTime = user?.permissions.includes("time_entries.create");
+  const canLogForOthers = user?.permissions.includes("tasks.update") ?? false;
+  const sortedTimeEntries = [...task.timeEntries].sort(
+    (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime() || b.createdAt.localeCompare(a.createdAt),
+  );
 
   function openEdit() {
     const t = task!;
@@ -433,24 +453,84 @@ export function TaskDetailPage() {
       </div>
 
       <div className="mb-6 rounded-lg border border-border bg-surface p-6">
-        <h2 className="mb-3 text-lg font-semibold">Work Logs (Time Entries)</h2>
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <h2 className="text-lg font-semibold">Work Logs (Time Entries)</h2>
+          {task.timeEntries.length > 0 && (
+            <Badge variant="default">
+              {task.actualHours}h logged{task.estimatedHours != null ? ` / ${task.estimatedHours}h estimated` : ""}
+            </Badge>
+          )}
+        </div>
         <ul className="mb-4 space-y-2">
-          {task.timeEntries.map((entry) => (
-            <li key={entry.id} className="flex items-start gap-3 rounded-md border border-border/60 bg-background/40 px-3 py-2.5">
-              <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/15 text-xs font-semibold text-primary">
-                {(entry.employee?.fullName ?? "?").charAt(0).toUpperCase()}
-              </div>
-              <div className="min-w-0 flex-1 text-sm">
-                <div className="flex flex-wrap items-baseline gap-x-1.5">
-                  <span className="font-medium">{entry.employee?.fullName ?? "-"}</span>
-                  <span className="text-text-muted">logged</span>
-                  <Badge variant="default">{entry.hours}h</Badge>
-                  <span className="text-text-muted">on {new Date(entry.date).toLocaleDateString()}</span>
-                </div>
-                {entry.description && <p className="mt-1 text-text-muted">{entry.description}</p>}
-              </div>
-            </li>
-          ))}
+          {sortedTimeEntries.map((entry) => {
+            const canEditEntry = canLogForOthers || entry.employeeId === user?.employeeId;
+            const isEditingEntry = editingEntryId === entry.id;
+            return (
+              <li key={entry.id} className="rounded-md border border-border/60 bg-background/40 px-3 py-2.5">
+                {isEditingEntry ? (
+                  <div className="flex flex-wrap items-end gap-2">
+                    <div>
+                      <label className="mb-1 block text-xs text-text-muted">Date</label>
+                      <DatePicker value={editEntryDate} onChange={setEditEntryDate} />
+                    </div>
+                    <div>
+                      <label className="mb-1 block text-xs text-text-muted">Hours</label>
+                      <Input
+                        type="number"
+                        step="0.25"
+                        value={editEntryHours}
+                        onChange={(e) => setEditEntryHours(e.target.value)}
+                      />
+                    </div>
+                    <div className="min-w-[10rem] flex-1">
+                      <label className="mb-1 block text-xs text-text-muted">Description</label>
+                      <Input value={editEntryDesc} onChange={(e) => setEditEntryDesc(e.target.value)} />
+                    </div>
+                    <Button
+                      disabled={!editEntryHours || timeEntryEditMutation.isPending}
+                      onClick={() => timeEntryEditMutation.mutate(entry.id)}
+                    >
+                      {timeEntryEditMutation.isPending ? "Saving..." : "Save"}
+                    </Button>
+                    <Button variant="secondary" onClick={() => setEditingEntryId(null)}>
+                      Cancel
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="flex items-start gap-3">
+                    <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/15 text-xs font-semibold text-primary">
+                      {(entry.employee?.fullName ?? "?").charAt(0).toUpperCase()}
+                    </div>
+                    <div className="min-w-0 flex-1 text-sm">
+                      <div className="flex flex-wrap items-baseline gap-x-1.5">
+                        <span className="font-medium">{entry.employee?.fullName ?? "-"}</span>
+                        <span className="text-text-muted">logged</span>
+                        <Badge variant="default">{entry.hours}h</Badge>
+                        <span className="text-text-muted">
+                          on {new Date(entry.date).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })}
+                        </span>
+                      </div>
+                      {entry.description && <p className="mt-1 text-text-muted">{entry.description}</p>}
+                    </div>
+                    {canEditEntry && (
+                      <Button
+                        variant="ghost"
+                        className="shrink-0"
+                        onClick={() => {
+                          setEditingEntryId(entry.id);
+                          setEditEntryDate(entry.date.slice(0, 10));
+                          setEditEntryHours(String(entry.hours));
+                          setEditEntryDesc(entry.description ?? "");
+                        }}
+                      >
+                        Edit
+                      </Button>
+                    )}
+                  </div>
+                )}
+              </li>
+            );
+          })}
           {task.timeEntries.length === 0 && <p className="text-sm text-text-muted">No time logged yet.</p>}
         </ul>
         {canLogTime && (
