@@ -252,6 +252,7 @@ model Project {
   status          ProjectStatus @default(PLANNING)
   priority        Priority      @default(MEDIUM)
   tags            String[]      @default([])
+  technologies    String[]      @default([])
   createdById     String?       @map("created_by_id") @db.Uuid
   createdBy       User?         @relation(fields: [createdById], references: [id], onDelete: SetNull)
   createdAt       DateTime      @default(now()) @map("created_at")

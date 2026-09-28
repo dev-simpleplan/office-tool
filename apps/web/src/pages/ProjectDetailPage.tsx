@@ -57,6 +57,15 @@ export function ProjectDetailPage() {
             {progress}% · {project.completedTaskCount} of {project.taskCount} tasks done
           </span>
         </DetailItem>
+        {project.technologies.length > 0 && (
+          <DetailItem label="Technology" full>
+            <div className="flex flex-wrap gap-1.5">
+              {project.technologies.map((t) => (
+                <Badge key={t} variant="default">{t}</Badge>
+              ))}
+            </div>
+          </DetailItem>
+        )}
         {project.description && (
           <DetailItem label="Description" full>
             {project.description}

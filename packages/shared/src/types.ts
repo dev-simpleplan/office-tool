@@ -110,6 +110,7 @@ export interface ProjectSummary {
   status: ProjectStatus;
   priority: Priority;
   tags: string[];
+  technologies: string[];
   taskCount: number;
   completedTaskCount: number;
   createdAt: string;

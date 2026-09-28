@@ -26,6 +26,7 @@ export const CreateProjectSchema = z.object({
   status: z.enum(PROJECT_STATUSES).optional(),
   priority: z.enum(PRIORITIES).optional(),
   tags: z.array(z.string()).optional().default([]),
+  technologies: z.array(z.string()).optional().default([]),
 });
 export type CreateProjectInput = z.infer<typeof CreateProjectSchema>;
 

@@ -19,6 +19,7 @@ export function ProjectsPage() {
   const [editingProject, setEditingProject] = useState<ProjectSummary | null>(null);
   const [archiveTarget, setArchiveTarget] = useState<ProjectSummary | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<ProjectSummary | null>(null);
+  const [technologiesInput, setTechnologiesInput] = useState("");
   const queryClient = useQueryClient();
   const navigate = useNavigate();
 
@@ -51,12 +52,14 @@ export function ProjectsPage() {
 
   function closeForm() {
     reset({ name: "", client: "", description: "", departmentId: "", teamId: "", projectLeadId: "" });
+    setTechnologiesInput("");
     setShowForm(false);
     setEditingProject(null);
   }
 
   function openCreateForm() {
     reset({ name: "", client: "", description: "", departmentId: "", teamId: "", projectLeadId: "" });
+    setTechnologiesInput("");
     setEditingProject(null);
     setShowForm(true);
   }
@@ -74,8 +77,17 @@ export function ProjectsPage() {
       budget: p.budget ?? undefined,
       estimatedHours: p.estimatedHours ?? undefined,
     });
+    setTechnologiesInput(p.technologies.join(", "));
     setEditingProject(p);
     setShowForm(true);
+  }
+
+  function submitProject(formData: CreateProjectInput) {
+    const technologies = technologiesInput
+      .split(",")
+      .map((t) => t.trim())
+      .filter(Boolean);
+    activeMutation.mutate({ ...formData, technologies });
   }
 
   const createMutation = useMutation({
@@ -124,7 +136,7 @@ export function ProjectsPage() {
 
       {showForm && (canCreate || canUpdate) && (
         <form
-          onSubmit={handleSubmit((data) => activeMutation.mutate(data))}
+          onSubmit={handleSubmit(submitProject)}
           className="mb-6 grid grid-cols-1 gap-4 rounded-lg border border-border bg-surface p-6 sm:grid-cols-2"
         >
           {editingProject && (
@@ -189,6 +201,14 @@ export function ProjectsPage() {
           <div>
             <label className="mb-1 block text-sm font-medium">Estimated Hours</label>
             <Input type="number" step="0.5" {...register("estimatedHours")} />
+          </div>
+          <div className="sm:col-span-2">
+            <label className="mb-1 block text-sm font-medium">Technology</label>
+            <Input
+              placeholder="comma, separated, e.g. React, Node.js, PostgreSQL"
+              value={technologiesInput}
+              onChange={(e) => setTechnologiesInput(e.target.value)}
+            />
           </div>
           <div className="sm:col-span-2">
             <label className="mb-1 block text-sm font-medium">Description</label>
