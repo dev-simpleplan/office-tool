@@ -250,6 +250,8 @@ model Project {
   endDate         DateTime?     @map("end_date")
   budget          Decimal?      @db.Decimal(12, 2)
   estimatedHours  Decimal?      @map("estimated_hours") @db.Decimal(8, 2)
+  /// Hours available per month, used for maintenance projects. Usage is derived from time logged on the project's tasks, never stored.
+  monthlyHours    Decimal?      @map("monthly_hours") @db.Decimal(8, 2)
   status          ProjectStatus @default(PLANNING)
   priority        Priority      @default(MEDIUM)
   tags            String[]      @default([])

@@ -55,6 +55,7 @@ export function ProjectsPage() {
     handleSubmit,
     reset,
     getValues,
+    watch,
     formState: { errors, isSubmitting },
   } = useForm<CreateProjectInput>({ resolver: zodResolver(CreateProjectSchema) });
 
@@ -85,6 +86,7 @@ export function ProjectsPage() {
       priority: p.priority,
       budget: p.budget ?? undefined,
       estimatedHours: p.estimatedHours ?? undefined,
+      monthlyHours: p.monthlyHours ?? undefined,
     });
     setTechnologiesInput(p.technologies.join(", "));
     setEditingProject(p);
@@ -229,6 +231,26 @@ export function ProjectsPage() {
             <label className="mb-1 block text-sm font-medium">Estimated Hours</label>
             <Input type="number" step="0.5" {...register("estimatedHours")} />
           </div>
+          {watch("status") === "MAINTENANCE" && (
+            <div className="sm:col-span-2">
+              <label htmlFor="project-monthly-hours" className="mb-1 block text-sm font-medium">
+                Monthly Hours Allocated
+              </label>
+              <Input
+                id="project-monthly-hours"
+                type="number"
+                step="0.5"
+                min="0"
+                placeholder="e.g. 100"
+                {...register("monthlyHours")}
+              />
+              <p className="mt-1 text-xs text-text-muted">
+                Hours available each month for this maintenance project. Hours used are counted from time logged on its
+                tasks.
+              </p>
+              {errors.monthlyHours && <p className="mt-1 text-xs text-danger">Enter a number of hours, 0 or more.</p>}
+            </div>
+          )}
           <div className="sm:col-span-2">
             <label className="mb-1 block text-sm font-medium">Technology</label>
             <Input

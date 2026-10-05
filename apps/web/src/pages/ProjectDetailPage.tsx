@@ -4,6 +4,7 @@ import { Badge, DetailGrid, DetailItem, ProgressBar, Table } from "@office/ui";
 import { api } from "../lib/api";
 import { formatINR } from "../lib/currency";
 import { projectStatusVariant } from "../lib/projectStatus";
+import { MonthlyHoursCard } from "../components/MonthlyHoursCard";
 import type { ProjectDetail } from "@office/shared";
 
 const PRIORITY_VARIANT: Record<string, "default" | "info" | "warning" | "danger"> = {
@@ -74,6 +75,10 @@ export function ProjectDetailPage() {
           </DetailItem>
         )}
       </DetailGrid>
+
+      {project.monthlyHours != null && project.monthlyUsage.length > 0 && (
+        <MonthlyHoursCard allocated={project.monthlyHours} usage={project.monthlyUsage} />
+      )}
 
       <h2 className="mb-3 text-lg font-semibold">Tasks</h2>
       <Table>

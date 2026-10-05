@@ -13,6 +13,12 @@ export const PROJECT_STATUSES = [
 ] as const;
 export const PRIORITIES = ["LOW", "MEDIUM", "HIGH", "URGENT"] as const;
 
+/** A blank number input submits "" (which z.coerce would turn into 0), so treat it as "not set". */
+const optionalHours = () =>
+  z
+    .preprocess((v) => (v === "" ? null : v), z.coerce.number().nonnegative().max(744).nullable())
+    .optional();
+
 export const CreateProjectSchema = z.object({
   name: z.string().min(1).max(200),
   client: z.string().max(200).optional(),
@@ -29,6 +35,7 @@ export const CreateProjectSchema = z.object({
   tags: z.array(z.string()).optional().default([]),
   technologies: z.array(z.string()).optional().default([]),
   projectTypeId: optionalUuid(),
+  monthlyHours: optionalHours(),
 });
 export type CreateProjectInput = z.infer<typeof CreateProjectSchema>;
 

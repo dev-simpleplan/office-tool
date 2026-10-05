@@ -114,6 +114,7 @@ export interface ProjectSummary {
   endDate?: string | null;
   budget?: number | null;
   estimatedHours?: number | null;
+  monthlyHours?: number | null;
   status: ProjectStatus;
   priority: Priority;
   tags: string[];
@@ -126,8 +127,17 @@ export interface ProjectSummary {
   updatedAt: string;
 }
 
+export interface MonthlyUsage {
+  /** "YYYY-MM" */
+  month: string;
+  usedHours: number;
+  plannedHours: number;
+}
+
 export interface ProjectDetail extends ProjectSummary {
   tasks: TaskSummary[];
+  /** Per-month hours; only filled in when the project has a monthly allocation. */
+  monthlyUsage: MonthlyUsage[];
 }
 
 export interface TaskChecklistItemSummary {

@@ -25,7 +25,7 @@ export function DetailItem({ label, children, full }: DetailItemProps) {
   );
 }
 
-export function ProgressBar({ value }: { value: number }) {
+export function ProgressBar({ value, tone = "default" }: { value: number; tone?: "default" | "danger" }) {
   const pct = Math.max(0, Math.min(100, value));
   return (
     <div
@@ -35,7 +35,7 @@ export function ProgressBar({ value }: { value: number }) {
       aria-valuemax={100}
       aria-valuenow={pct}
     >
-      <div className="op-progress__bar" style={{ width: `${pct}%` }} />
+      <div className={clsx("op-progress__bar", tone === "danger" && "op-progress__bar--danger")} style={{ width: `${pct}%` }} />
     </div>
   );
 }

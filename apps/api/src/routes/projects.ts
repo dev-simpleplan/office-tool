@@ -2,6 +2,7 @@ import type { FastifyInstance } from "fastify";
 import { CreateProjectSchema, UpdateProjectSchema } from "@office/validation";
 import { prisma } from "../lib/prisma.js";
 import { Prisma, ProjectStatus } from "../generated/prisma/index.js";
+import { buildMonthlyUsage } from "../lib/monthlyUsage.js";
 
 const projectInclude = {
   department: { select: { id: true, name: true } },
@@ -14,11 +15,12 @@ const projectInclude = {
 type ProjectWithTasks = Prisma.ProjectGetPayload<{ include: typeof projectInclude }>;
 
 function serializeProject(p: ProjectWithTasks) {
-  const { tasks, budget, estimatedHours, ...rest } = p;
+  const { tasks, budget, estimatedHours, monthlyHours, ...rest } = p;
   return {
     ...rest,
     budget: budget === null || budget === undefined ? null : Number(budget),
     estimatedHours: estimatedHours === null || estimatedHours === undefined ? null : Number(estimatedHours),
+    monthlyHours: monthlyHours === null || monthlyHours === undefined ? null : Number(monthlyHours),
     taskCount: tasks?.length ?? 0,
     completedTaskCount: tasks?.filter((t) => t.status === "COMPLETED").length ?? 0,
   };
@@ -59,7 +61,7 @@ export async function projectRoutes(app: FastifyInstance) {
       include: {
         assignee: { select: { id: true, fullName: true } },
         project: { select: { id: true, name: true } },
-        timeEntries: { select: { hours: true } },
+        timeEntries: { select: { hours: true, date: true } },
       },
     },
   } satisfies Prisma.ProjectInclude;
@@ -78,7 +80,8 @@ export async function projectRoutes(app: FastifyInstance) {
         actualHours: timeEntries.reduce((sum, e) => sum + Number(e.hours), 0),
       };
     });
-    return reply.send({ project: { ...serialized, tasks: taskList } });
+    const monthlyUsage = serialized.monthlyHours != null ? buildMonthlyUsage(tasks) : [];
+    return reply.send({ project: { ...serialized, tasks: taskList, monthlyUsage } });
   });
 
   app.post("/", { preHandler: app.requirePermission("projects.create") }, async (req, reply) => {

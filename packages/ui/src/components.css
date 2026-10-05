@@ -407,3 +407,6 @@ textarea:focus-visible,
   background: var(--color-primary);
   transition: width 0.3s ease;
 }
+.op-progress__bar--danger {
+  background: var(--color-danger);
+}
