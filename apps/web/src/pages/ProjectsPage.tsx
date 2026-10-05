@@ -5,7 +5,9 @@ import { CreateProjectSchema, PROJECT_STATUSES, PRIORITIES, type CreateProjectIn
 import { Button, Input, Table, Badge, ConfirmDialog } from "@office/ui";
 import { api } from "../lib/api";
 import { useAuthStore } from "../store/authStore";
-import type { ProjectSummary, DepartmentSummary, TeamSummary, EmployeeSummary } from "@office/shared";
+import type { ProjectSummary, ProjectTypeSummary, DepartmentSummary, TeamSummary, EmployeeSummary } from "@office/shared";
+import { ProjectTypesModal } from "../components/ProjectTypesModal";
+import { projectStatusVariant } from "../lib/projectStatus";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
@@ -20,12 +22,17 @@ export function ProjectsPage() {
   const [archiveTarget, setArchiveTarget] = useState<ProjectSummary | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<ProjectSummary | null>(null);
   const [technologiesInput, setTechnologiesInput] = useState("");
+  const [showTypesModal, setShowTypesModal] = useState(false);
   const queryClient = useQueryClient();
   const navigate = useNavigate();
 
   const { data, isLoading } = useQuery({
     queryKey: ["projects"],
     queryFn: () => api.get<{ projects: ProjectSummary[] }>("/api/projects"),
+  });
+  const { data: typeData } = useQuery({
+    queryKey: ["project-types"],
+    queryFn: () => api.get<{ projectTypes: ProjectTypeSummary[] }>("/api/project-types"),
   });
   const { data: deptData } = useQuery({
     queryKey: ["departments"],
@@ -47,6 +54,7 @@ export function ProjectsPage() {
     register,
     handleSubmit,
     reset,
+    getValues,
     formState: { errors, isSubmitting },
   } = useForm<CreateProjectInput>({ resolver: zodResolver(CreateProjectSchema) });
 
@@ -73,6 +81,7 @@ export function ProjectsPage() {
       teamId: p.teamId ?? "",
       projectLeadId: p.projectLeadId ?? "",
       status: p.status,
+      projectTypeId: p.projectTypeId ?? "",
       priority: p.priority,
       budget: p.budget ?? undefined,
       estimatedHours: p.estimatedHours ?? undefined,
@@ -87,7 +96,9 @@ export function ProjectsPage() {
       .split(",")
       .map((t) => t.trim())
       .filter(Boolean);
-    activeMutation.mutate({ ...formData, technologies });
+    // The form schema turns "" into undefined, which the API reads as "leave
+    // unchanged", so read the raw value to let "None" actually clear the type.
+    activeMutation.mutate({ ...formData, technologies, projectTypeId: getValues("projectTypeId") || null });
   }
 
   const createMutation = useMutation({
@@ -187,6 +198,22 @@ export function ProjectsPage() {
             </select>
           </div>
           <div>
+            <label className="mb-1 block text-sm font-medium">Project Type</label>
+            <select className="op-input" {...register("projectTypeId")}>
+              <option value="">None</option>
+              {typeData?.projectTypes.map((t) => (
+                <option key={t.id} value={t.id}>{t.name}</option>
+              ))}
+            </select>
+            <button
+              type="button"
+              className="mt-1 text-xs font-semibold text-primary hover:underline"
+              onClick={() => setShowTypesModal(true)}
+            >
+              Manage types
+            </button>
+          </div>
+          <div>
             <label className="mb-1 block text-sm font-medium">Priority</label>
             <select className="op-input" {...register("priority")}>
               {PRIORITIES.map((p) => (
@@ -236,6 +263,7 @@ export function ProjectsPage() {
             <tr>
               <th>Name</th>
               <th>Client</th>
+              <th>Type</th>
               <th>Department</th>
               <th>Status</th>
               <th>Priority</th>
@@ -252,8 +280,9 @@ export function ProjectsPage() {
               >
                 <td>{p.name}</td>
                 <td>{p.client ?? "-"}</td>
+                <td>{p.projectType?.name ?? "-"}</td>
                 <td>{p.department?.name ?? "-"}</td>
-                <td><Badge variant={p.status === "ARCHIVED" ? "warning" : "success"}>{p.status}</Badge></td>
+                <td><Badge variant={projectStatusVariant(p.status)}>{p.status}</Badge></td>
                 <td>{p.priority}</td>
                 <td>{p.taskCount ? `${p.completedTaskCount}/${p.taskCount}` : "-"}</td>
                 {(canUpdate || canArchive || canDelete) && (
@@ -320,6 +349,8 @@ export function ProjectsPage() {
         onConfirm={() => deleteTarget && deleteMutation.mutate(deleteTarget.id)}
         onCancel={() => setDeleteTarget(null)}
       />
+
+      <ProjectTypesModal open={showTypesModal} onClose={() => setShowTypesModal(false)} />
     </div>
   );
 }

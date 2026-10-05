@@ -12,6 +12,7 @@ import { departmentRoutes } from "./routes/departments.js";
 import { teamRoutes } from "./routes/teams.js";
 import { scheduleRoutes } from "./routes/schedules.js";
 import { projectRoutes } from "./routes/projects.js";
+import { projectTypeRoutes } from "./routes/project-types.js";
 import { taskRoutes } from "./routes/tasks.js";
 import { dashboardRoutes } from "./routes/dashboard.js";
 import { reportRoutes } from "./routes/reports.js";
@@ -55,6 +56,7 @@ export async function buildApp(opts: { logger?: boolean } = {}) {
   await app.register(teamRoutes, { prefix: "/api/teams" });
   await app.register(scheduleRoutes, { prefix: "/api/schedules" });
   await app.register(projectRoutes, { prefix: "/api/projects" });
+  await app.register(projectTypeRoutes, { prefix: "/api/project-types" });
   await app.register(taskRoutes, { prefix: "/api/tasks" });
   await app.register(dashboardRoutes, { prefix: "/api/dashboard" });
   await app.register(reportRoutes, { prefix: "/api/reports" });

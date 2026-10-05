@@ -213,6 +213,7 @@ enum ProjectStatus {
   PLANNING
   NOT_STARTED
   ACTIVE
+  MAINTENANCE
   ON_HOLD
   COMPLETED
   CANCELLED
@@ -253,6 +254,8 @@ model Project {
   priority        Priority      @default(MEDIUM)
   tags            String[]      @default([])
   technologies    String[]      @default([])
+  projectTypeId   String?       @map("project_type_id") @db.Uuid
+  projectType     ProjectType?  @relation(fields: [projectTypeId], references: [id], onDelete: SetNull)
   createdById     String?       @map("created_by_id") @db.Uuid
   createdBy       User?         @relation(fields: [createdById], references: [id], onDelete: SetNull)
   createdAt       DateTime      @default(now()) @map("created_at")
@@ -263,8 +266,20 @@ model Project {
   @@index([departmentId])
   @@index([teamId])
   @@index([status])
+  @@index([projectTypeId])
   @@index([createdAt])
   @@map("projects")
+}
+
+/// User-managed list of project types (e.g. Active Project, Maintenance Project).
+/// Deleting a type leaves its projects untyped rather than deleting them.
+model ProjectType {
+  id        String    @id @default(uuid()) @db.Uuid
+  name      String    @unique
+  createdAt DateTime  @default(now()) @map("created_at")
+  projects  Project[]
+
+  @@map("project_types")
 }
 
 model Task {

@@ -7,6 +7,7 @@ const projectInclude = {
   department: { select: { id: true, name: true } },
   team: { select: { id: true, name: true } },
   projectLead: { select: { id: true, fullName: true } },
+  projectType: { select: { id: true, name: true } },
   tasks: { select: { id: true, status: true } },
 } satisfies Prisma.ProjectInclude;
 

@@ -5,6 +5,7 @@ export const PROJECT_STATUSES = [
   "PLANNING",
   "NOT_STARTED",
   "ACTIVE",
+  "MAINTENANCE",
   "ON_HOLD",
   "COMPLETED",
   "CANCELLED",
@@ -27,8 +28,17 @@ export const CreateProjectSchema = z.object({
   priority: z.enum(PRIORITIES).optional(),
   tags: z.array(z.string()).optional().default([]),
   technologies: z.array(z.string()).optional().default([]),
+  projectTypeId: optionalUuid(),
 });
 export type CreateProjectInput = z.infer<typeof CreateProjectSchema>;
 
 export const UpdateProjectSchema = CreateProjectSchema.partial();
 export type UpdateProjectInput = z.infer<typeof UpdateProjectSchema>;
+
+export const CreateProjectTypeSchema = z.object({
+  name: z.string().trim().min(1).max(100),
+});
+export type CreateProjectTypeInput = z.infer<typeof CreateProjectTypeSchema>;
+
+export const UpdateProjectTypeSchema = CreateProjectTypeSchema;
+export type UpdateProjectTypeInput = CreateProjectTypeInput;

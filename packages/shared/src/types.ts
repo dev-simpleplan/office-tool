@@ -85,12 +85,19 @@ export type ProjectStatus =
   | "PLANNING"
   | "NOT_STARTED"
   | "ACTIVE"
+  | "MAINTENANCE"
   | "ON_HOLD"
   | "COMPLETED"
   | "CANCELLED"
   | "ARCHIVED";
 export type Priority = "LOW" | "MEDIUM" | "HIGH" | "URGENT";
 export type TaskStatus = "NOT_STARTED" | "IN_PROGRESS" | "BLOCKED" | "COMPLETED" | "CANCELLED";
+
+export interface ProjectTypeSummary {
+  id: string;
+  name: string;
+  projectCount: number;
+}
 
 export interface ProjectSummary {
   id: string;
@@ -111,6 +118,8 @@ export interface ProjectSummary {
   priority: Priority;
   tags: string[];
   technologies: string[];
+  projectTypeId?: string | null;
+  projectType?: { id: string; name: string } | null;
   taskCount: number;
   completedTaskCount: number;
   createdAt: string;

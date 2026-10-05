@@ -3,6 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { Badge, DetailGrid, DetailItem, ProgressBar, Table } from "@office/ui";
 import { api } from "../lib/api";
 import { formatINR } from "../lib/currency";
+import { projectStatusVariant } from "../lib/projectStatus";
 import type { ProjectDetail } from "@office/shared";
 
 const PRIORITY_VARIANT: Record<string, "default" | "info" | "warning" | "danger"> = {
@@ -33,11 +34,12 @@ export function ProjectDetailPage() {
       </button>
       <div className="mb-6 flex items-center justify-between">
         <h1 className="text-2xl font-bold">{project.name}</h1>
-        <Badge variant={project.status === "ARCHIVED" ? "warning" : "success"}>{project.status}</Badge>
+        <Badge variant={projectStatusVariant(project.status)}>{project.status}</Badge>
       </div>
 
       <DetailGrid className="mb-8">
         <DetailItem label="Client">{project.client}</DetailItem>
+        <DetailItem label="Project Type">{project.projectType?.name}</DetailItem>
         <DetailItem label="Department">{project.department?.name}</DetailItem>
         <DetailItem label="Team">{project.team?.name}</DetailItem>
         <DetailItem label="Project Lead">{project.projectLead?.fullName}</DetailItem>
@@ -51,7 +53,7 @@ export function ProjectDetailPage() {
         <DetailItem label="End Date">
           {project.endDate ? new Date(project.endDate).toLocaleDateString() : null}
         </DetailItem>
-        <DetailItem label="Progress">
+        <DetailItem label="Progress" full>
           <ProgressBar value={progress} />
           <span className="text-sm text-text-secondary">
             {progress}% · {project.completedTaskCount} of {project.taskCount} tasks done
