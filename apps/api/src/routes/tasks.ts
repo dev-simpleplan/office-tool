@@ -63,6 +63,19 @@ function serializeTask(t: TaskWithEntries) {
   };
 }
 
+/**
+ * Admins, team leads and project managers can act on any task's time entries.
+ * The Employee role also holds tasks.update, but only for its own assigned
+ * tasks, so the role has to be checked as well as the permission.
+ */
+function canManageTimeEntries(user: { permissions: string[]; roleName: string }): boolean {
+  return user.permissions.includes("tasks.update") && user.roleName !== "EMPLOYEE";
+}
+
+async function employeeExists(id: string): Promise<boolean> {
+  return !!(await prisma.employee.findUnique({ where: { id }, select: { id: true } }));
+}
+
 export async function taskRoutes(app: FastifyInstance) {
   app.get("/", { preHandler: app.requirePermission("tasks.view") }, async (req, reply) => {
     const q = req.query as {
@@ -360,9 +373,13 @@ export async function taskRoutes(app: FastifyInstance) {
     const parsed = CreateTimeEntrySchema.safeParse(req.body);
     if (!parsed.success) return reply.code(400).send({ error: "invalid_input", issues: parsed.error.issues });
 
-    const canLogForOthers = user.permissions.includes("tasks.update");
-    let employeeId = parsed.data.employeeId ?? user.employeeId ?? undefined;
-    if (!canLogForOthers) {
+    let employeeId: string | undefined;
+    if (canManageTimeEntries(user)) {
+      employeeId = parsed.data.employeeId ?? user.employeeId ?? undefined;
+      if (parsed.data.employeeId && !(await employeeExists(parsed.data.employeeId))) {
+        return reply.code(400).send({ error: "invalid_employee" });
+      }
+    } else {
       if (!user.employeeId) return reply.code(403).send({ error: "forbidden", reason: "no_employee_record" });
       if (task.assigneeId !== user.employeeId) {
         return reply.code(403).send({ error: "forbidden", reason: "not_assignee" });
@@ -390,17 +407,23 @@ export async function taskRoutes(app: FastifyInstance) {
     const existing = await prisma.timeEntry.findUnique({ where: { id: entryId } });
     if (!existing || existing.taskId !== id) return reply.code(404).send({ error: "not_found" });
 
-    const canEditAny = user.permissions.includes("tasks.update");
-    if (!canEditAny && existing.employeeId !== user.employeeId) {
+    const isManager = canManageTimeEntries(user);
+    if (!isManager && existing.employeeId !== user.employeeId) {
       return reply.code(403).send({ error: "forbidden", reason: "not_your_entry" });
     }
     const parsed = UpdateTimeEntrySchema.safeParse(req.body);
     if (!parsed.success) return reply.code(400).send({ error: "invalid_input", issues: parsed.error.issues });
-    const { date, description, ...rest } = parsed.data;
+    const { date, description, employeeId, ...rest } = parsed.data;
+    const movingToSomeoneElse = employeeId !== undefined && employeeId !== existing.employeeId;
+    if (movingToSomeoneElse) {
+      if (!isManager) return reply.code(403).send({ error: "forbidden", reason: "cannot_change_person" });
+      if (!(await employeeExists(employeeId))) return reply.code(400).send({ error: "invalid_employee" });
+    }
     const entry = await prisma.timeEntry.update({
       where: { id: entryId },
       data: {
         ...rest,
+        ...(movingToSomeoneElse ? { employeeId } : {}),
         ...(description !== undefined ? { description: cleanDescription(description) } : {}),
         ...(date !== undefined ? { date: new Date(date) } : {}),
       },

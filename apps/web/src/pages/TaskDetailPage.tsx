@@ -59,6 +59,8 @@ export function TaskDetailPage() {
   const [timeEntryDate, setTimeEntryDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [timeEntryDesc, setTimeEntryDesc] = useState("");
   const [editingEntryId, setEditingEntryId] = useState<string | null>(null);
+  const [timeEntryEmployeeId, setTimeEntryEmployeeId] = useState("");
+  const [editEntryEmployeeId, setEditEntryEmployeeId] = useState("");
   const [editEntryDate, setEditEntryDate] = useState("");
   const [editEntryHours, setEditEntryHours] = useState("");
   const [editEntryDesc, setEditEntryDesc] = useState("");
@@ -76,8 +78,8 @@ export function TaskDetailPage() {
     enabled: canFullEdit,
   });
   const { data: empData } = useQuery({
-    queryKey: ["employees"],
-    queryFn: () => api.get<{ employees: EmployeeSummary[] }>("/api/employees"),
+    queryKey: ["employees", "all"],
+    queryFn: () => api.get<{ employees: EmployeeSummary[] }>("/api/employees?pageSize=200"),
     enabled: canFullEdit,
   });
 
@@ -118,21 +120,25 @@ export function TaskDetailPage() {
     onSuccess: invalidate,
   });
   const timeEntryMutation = useMutation({
-    mutationFn: () =>
+    // employeeId is only sent by people allowed to log for others; the server ignores it for everyone else.
+    mutationFn: (employeeId: string | undefined) =>
       api.post(`/api/tasks/${id}/time-entries`, {
         date: timeEntryDate,
         hours: Number(timeEntryHours),
         description: timeEntryDesc || undefined,
+        employeeId,
       }),
     onSuccess: () => {
       setTimeEntryHours("");
       setTimeEntryDesc("");
+      setTimeEntryEmployeeId("");
       invalidate();
     },
   });
   const timeEntryEditMutation = useMutation({
-    mutationFn: (entryId: string) =>
+    mutationFn: ({ entryId, employeeId }: { entryId: string; employeeId: string | undefined }) =>
       api.patch(`/api/tasks/${id}/time-entries/${entryId}`, {
+        employeeId,
         date: editEntryDate,
         hours: Number(editEntryHours),
         description: editEntryDesc,
@@ -174,7 +180,20 @@ export function TaskDetailPage() {
   const isOwnTask = user?.employeeId && user.employeeId === task.assigneeId;
   const canChangeStatus = user?.permissions.includes("tasks.update") && (user.permissions.includes("tasks.assign") || isOwnTask);
   const canLogTime = user?.permissions.includes("time_entries.create");
-  const canLogForOthers = user?.permissions.includes("tasks.update") ?? false;
+  // Same rule as the server: the Employee role holds tasks.update too, but only for its own tasks.
+  const canLogForOthers = !!canFullEdit;
+  const loggedForId = timeEntryEmployeeId || task.assigneeId || user?.employeeId || "";
+  const allEmployees = empData?.employees ?? [];
+  // Active people, plus whoever is already selected (e.g. someone archived on an old entry).
+  const personOptions = (selectedId: string) =>
+    allEmployees
+      .filter((e) => e.status === "ACTIVE" || e.id === selectedId)
+      .map((e) => (
+        <option key={e.id} value={e.id}>
+          {e.fullName}
+          {e.id === task.assigneeId ? " (assignee)" : ""}
+        </option>
+      ));
   const sortedTimeEntries = [...task.timeEntries].sort(
     (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime() || b.createdAt.localeCompare(a.createdAt),
   );
@@ -485,6 +504,21 @@ export function TaskDetailPage() {
                           onChange={(e) => setEditEntryHours(e.target.value)}
                         />
                       </div>
+                      {canLogForOthers && (
+                        <div>
+                          <label htmlFor={`edit-logged-for-${entry.id}`} className="mb-1 block text-xs text-text-muted">
+                            Logged for
+                          </label>
+                          <select
+                            id={`edit-logged-for-${entry.id}`}
+                            className="op-input"
+                            value={editEntryEmployeeId}
+                            onChange={(e) => setEditEntryEmployeeId(e.target.value)}
+                          >
+                            {personOptions(editEntryEmployeeId)}
+                          </select>
+                        </div>
+                      )}
                     </div>
                     <div>
                       <label className="mb-1 block text-xs text-text-muted">Description</label>
@@ -493,7 +527,12 @@ export function TaskDetailPage() {
                     <div className="flex gap-2">
                       <Button
                         disabled={!editEntryHours || timeEntryEditMutation.isPending}
-                        onClick={() => timeEntryEditMutation.mutate(entry.id)}
+                        onClick={() =>
+                          timeEntryEditMutation.mutate({
+                            entryId: entry.id,
+                            employeeId: canLogForOthers ? editEntryEmployeeId : undefined,
+                          })
+                        }
                       >
                         {timeEntryEditMutation.isPending ? "Saving..." : "Save"}
                       </Button>
@@ -526,6 +565,7 @@ export function TaskDetailPage() {
                         onClick={() => {
                           setEditingEntryId(entry.id);
                           setEditEntryDate(entry.date.slice(0, 10));
+                          setEditEntryEmployeeId(entry.employeeId);
                           setEditEntryHours(String(entry.hours));
                           setEditEntryDesc(entry.description ?? "");
                         }}
@@ -551,6 +591,22 @@ export function TaskDetailPage() {
                 <label className="mb-1 block text-xs text-text-muted">Hours</label>
                 <Input type="number" step="0.25" value={timeEntryHours} onChange={(e) => setTimeEntryHours(e.target.value)} />
               </div>
+              {canLogForOthers && (
+                <div>
+                  <label htmlFor="time-entry-logged-for" className="mb-1 block text-xs text-text-muted">
+                    Logged for
+                  </label>
+                  <select
+                    id="time-entry-logged-for"
+                    className="op-input"
+                    value={loggedForId}
+                    onChange={(e) => setTimeEntryEmployeeId(e.target.value)}
+                  >
+                    {!loggedForId && <option value="">Choose a person</option>}
+                    {personOptions(loggedForId)}
+                  </select>
+                </div>
+              )}
             </div>
             <div>
               <label className="mb-1 block text-xs text-text-muted">Description</label>
@@ -562,7 +618,10 @@ export function TaskDetailPage() {
               />
             </div>
             <div className="flex items-center gap-3">
-              <Button disabled={!timeEntryHours || timeEntryMutation.isPending} onClick={() => timeEntryMutation.mutate()}>
+              <Button
+                disabled={!timeEntryHours || (canLogForOthers && !loggedForId) || timeEntryMutation.isPending}
+                onClick={() => timeEntryMutation.mutate(canLogForOthers ? loggedForId : undefined)}
+              >
                 {timeEntryMutation.isPending ? "Logging..." : "Log Time"}
               </Button>
               {timeEntryMutation.isError && <p className="text-sm text-danger">Could not log time. Check the hours and try again.</p>}

@@ -53,6 +53,8 @@ export const CreateTimeEntrySchema = z.object({
 export type CreateTimeEntryInput = z.infer<typeof CreateTimeEntrySchema>;
 
 export const UpdateTimeEntrySchema = z.object({
+  /** Move the entry to another person (managers only). */
+  employeeId: z.string().uuid().optional(),
   date: z.string().min(1).optional(),
   hours: z.coerce.number().positive().max(24).optional(),
   description: z.string().max(10000).optional(),
