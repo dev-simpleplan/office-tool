@@ -48,14 +48,14 @@ export const CreateTimeEntrySchema = z.object({
   employeeId: optionalUuid(),
   date: z.string().min(1),
   hours: z.coerce.number().positive().max(24),
-  description: z.string().max(1000).optional(),
+  description: z.string().max(10000).optional(),
 });
 export type CreateTimeEntryInput = z.infer<typeof CreateTimeEntrySchema>;
 
 export const UpdateTimeEntrySchema = z.object({
   date: z.string().min(1).optional(),
   hours: z.coerce.number().positive().max(24).optional(),
-  description: z.string().max(1000).optional(),
+  description: z.string().max(10000).optional(),
 });
 export type UpdateTimeEntryInput = z.infer<typeof UpdateTimeEntrySchema>;
 

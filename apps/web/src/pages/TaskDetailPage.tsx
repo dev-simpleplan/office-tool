@@ -19,6 +19,8 @@ import type { TaskDetail, ProjectSummary, EmployeeSummary } from "@office/shared
 import { CreateTaskSchema, TASK_STATUSES, TASK_PRIORITIES, type CreateTaskInput } from "@office/validation";
 import { useRef, useState } from "react";
 import { relativeTime } from "../lib/relativeTime";
+import { LazyRichTextEditor } from "../components/LazyRichTextEditor";
+import { RichTextView } from "../components/RichTextView";
 
 const ACTIVITY_LABEL: Record<string, string> = {
   created: "created the task",
@@ -133,7 +135,7 @@ export function TaskDetailPage() {
       api.patch(`/api/tasks/${id}/time-entries/${entryId}`, {
         date: editEntryDate,
         hours: Number(editEntryHours),
-        description: editEntryDesc || undefined,
+        description: editEntryDesc,
       }),
     onSuccess: () => {
       setEditingEntryId(null);
@@ -468,33 +470,38 @@ export function TaskDetailPage() {
             return (
               <li key={entry.id} className="rounded-md border border-border/60 bg-background/40 px-3 py-2.5">
                 {isEditingEntry ? (
-                  <div className="flex flex-wrap items-end gap-2">
-                    <div>
-                      <label className="mb-1 block text-xs text-text-muted">Date</label>
-                      <DatePicker value={editEntryDate} onChange={setEditEntryDate} />
+                  <div className="space-y-3">
+                    <div className="flex flex-wrap items-end gap-3">
+                      <div>
+                        <label className="mb-1 block text-xs text-text-muted">Date</label>
+                        <DatePicker value={editEntryDate} onChange={setEditEntryDate} />
+                      </div>
+                      <div>
+                        <label className="mb-1 block text-xs text-text-muted">Hours</label>
+                        <Input
+                          type="number"
+                          step="0.25"
+                          value={editEntryHours}
+                          onChange={(e) => setEditEntryHours(e.target.value)}
+                        />
+                      </div>
                     </div>
                     <div>
-                      <label className="mb-1 block text-xs text-text-muted">Hours</label>
-                      <Input
-                        type="number"
-                        step="0.25"
-                        value={editEntryHours}
-                        onChange={(e) => setEditEntryHours(e.target.value)}
-                      />
-                    </div>
-                    <div className="min-w-[10rem] flex-1">
                       <label className="mb-1 block text-xs text-text-muted">Description</label>
-                      <Input value={editEntryDesc} onChange={(e) => setEditEntryDesc(e.target.value)} />
+                      <LazyRichTextEditor value={editEntryDesc} onChange={setEditEntryDesc} ariaLabel="Work log description" />
                     </div>
-                    <Button
-                      disabled={!editEntryHours || timeEntryEditMutation.isPending}
-                      onClick={() => timeEntryEditMutation.mutate(entry.id)}
-                    >
-                      {timeEntryEditMutation.isPending ? "Saving..." : "Save"}
-                    </Button>
-                    <Button variant="secondary" onClick={() => setEditingEntryId(null)}>
-                      Cancel
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button
+                        disabled={!editEntryHours || timeEntryEditMutation.isPending}
+                        onClick={() => timeEntryEditMutation.mutate(entry.id)}
+                      >
+                        {timeEntryEditMutation.isPending ? "Saving..." : "Save"}
+                      </Button>
+                      <Button variant="secondary" onClick={() => setEditingEntryId(null)}>
+                        Cancel
+                      </Button>
+                      {timeEntryEditMutation.isError && <p className="self-center text-sm text-danger">Failed to save.</p>}
+                    </div>
                   </div>
                 ) : (
                   <div className="flex items-start gap-3">
@@ -510,7 +517,7 @@ export function TaskDetailPage() {
                           on {new Date(entry.date).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })}
                         </span>
                       </div>
-                      {entry.description && <p className="mt-1 text-text-muted">{entry.description}</p>}
+                      {entry.description && <RichTextView value={entry.description} className="mt-2 text-text-secondary" />}
                     </div>
                     {canEditEntry && (
                       <Button
@@ -534,22 +541,32 @@ export function TaskDetailPage() {
           {task.timeEntries.length === 0 && <p className="text-sm text-text-muted">No time logged yet.</p>}
         </ul>
         {canLogTime && (
-          <div className="flex flex-wrap items-end gap-2 rounded-md border border-dashed border-border/70 p-3">
-            <div>
-              <label className="mb-1 block text-xs text-text-muted">Date</label>
-              <DatePicker value={timeEntryDate} onChange={setTimeEntryDate} />
-            </div>
-            <div>
-              <label className="mb-1 block text-xs text-text-muted">Hours</label>
-              <Input type="number" step="0.25" value={timeEntryHours} onChange={(e) => setTimeEntryHours(e.target.value)} />
+          <div className="space-y-3 rounded-md border border-dashed border-border/70 p-3">
+            <div className="flex flex-wrap items-end gap-3">
+              <div>
+                <label className="mb-1 block text-xs text-text-muted">Date</label>
+                <DatePicker value={timeEntryDate} onChange={setTimeEntryDate} />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs text-text-muted">Hours</label>
+                <Input type="number" step="0.25" value={timeEntryHours} onChange={(e) => setTimeEntryHours(e.target.value)} />
+              </div>
             </div>
             <div>
               <label className="mb-1 block text-xs text-text-muted">Description</label>
-              <Input value={timeEntryDesc} onChange={(e) => setTimeEntryDesc(e.target.value)} />
+              <LazyRichTextEditor
+                value={timeEntryDesc}
+                onChange={setTimeEntryDesc}
+                ariaLabel="Work log description"
+                placeholder="What did you work on? Use headings, lists and links to add detail."
+              />
             </div>
-            <Button disabled={!timeEntryHours || timeEntryMutation.isPending} onClick={() => timeEntryMutation.mutate()}>
-              {timeEntryMutation.isPending ? "Logging..." : "Log Time"}
-            </Button>
+            <div className="flex items-center gap-3">
+              <Button disabled={!timeEntryHours || timeEntryMutation.isPending} onClick={() => timeEntryMutation.mutate()}>
+                {timeEntryMutation.isPending ? "Logging..." : "Log Time"}
+              </Button>
+              {timeEntryMutation.isError && <p className="text-sm text-danger">Could not log time. Check the hours and try again.</p>}
+            </div>
           </div>
         )}
       </div>

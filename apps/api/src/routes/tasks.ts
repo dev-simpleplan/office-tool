@@ -13,6 +13,7 @@ import { prisma } from "../lib/prisma.js";
 import { Prisma, TaskStatus, Priority } from "../generated/prisma/index.js";
 import { notify, logActivity } from "../lib/notify.js";
 import { storage } from "../lib/storage.js";
+import { cleanDescription } from "../lib/richText.js";
 import { randomUUID } from "node:crypto";
 
 const MAX_ATTACHMENT_SIZE = 10 * 1024 * 1024;
@@ -376,7 +377,7 @@ export async function taskRoutes(app: FastifyInstance) {
         employeeId,
         date: new Date(parsed.data.date),
         hours: parsed.data.hours,
-        description: parsed.data.description,
+        description: cleanDescription(parsed.data.description),
       },
       include: { employee: { select: { id: true, fullName: true } } },
     });
@@ -395,10 +396,14 @@ export async function taskRoutes(app: FastifyInstance) {
     }
     const parsed = UpdateTimeEntrySchema.safeParse(req.body);
     if (!parsed.success) return reply.code(400).send({ error: "invalid_input", issues: parsed.error.issues });
-    const { date, ...rest } = parsed.data;
+    const { date, description, ...rest } = parsed.data;
     const entry = await prisma.timeEntry.update({
       where: { id: entryId },
-      data: { ...rest, ...(date !== undefined ? { date: new Date(date) } : {}) },
+      data: {
+        ...rest,
+        ...(description !== undefined ? { description: cleanDescription(description) } : {}),
+        ...(date !== undefined ? { date: new Date(date) } : {}),
+      },
       include: { employee: { select: { id: true, fullName: true } } },
     });
     return reply.send({ entry: { ...entry, hours: Number(entry.hours) } });
